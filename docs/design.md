@@ -45,12 +45,12 @@ Mermaid にはユースケース図とパッケージ図の専用の記法がな
 | F-08 | ヘッダー行の決定 | 先頭の空行を飛ばし、最初の空でない行をヘッダーにする。空ファイル・ヘッダーのみのファイルを判定する | コア | FR-04, FR-08 |
 | F-09 | 空行の削除 | すべてのセルが空の行を削除する | コア | FR-21 |
 | F-10 | 列数の検査 | ヘッダーと列数が違う行を警告する | コア | FR-30, FR-31 |
-| F-11 | 重複行の削除 | 列数と全セルが一致する行の2件目以降を削除する | コア | FR-22 |
+| F-11 | 重複行の検出と削除 | 列数と全セルが一致する行を検出する。削除が有効なとき（初期状態はオフ）だけ2件目以降を削除し、無効なときは情報として表示する | コア | FR-22 |
 | F-12 | 数式化の検査 | 整形で先頭が `=` `+` `-` `@` になったセルを警告する | コア | FR-48 |
 | F-13 | 出力文字コードの検査 | CP932 で表せない文字を見つけ、出力できない状態にする | コア | FR-16 |
 | F-14 | CSV 書き出し | 選んだ文字コードと改行コードでバイト列にする | コア | FR-14, FR-15, FR-50 |
 | F-15 | 整形結果の取得 | ファイルと設定を受け取り、整形結果を JSON で返す | API | NFR-08 |
-| F-16 | ダウンロード用の出力 | ファイルと設定を受け取り、整形後の CSV を返す | API | FR-50 |
+| F-16 | ダウンロード用の出力 | ファイルと設定を受け取り、整形後の CSV を返す。保存するファイル名（`元の名前_tidy.csv`）はブラウザ側で付ける | API・画面 | FR-50 |
 | F-17 | 概要と件数の表示 | 文字コード・改行コードの変換内容と変更件数を表示する | 画面 | FR-46, FR-47 |
 | F-18 | 課題の一覧表示 | エラー・警告・情報を、種類ごとに件数と最初の 20 件で表示する | 画面 | FR-16, FR-18 |
 | F-19 | 差分表示 | 変更前後を左右に並べ、「変更箇所のみ」と「全行」を切り替える。見えない文字は記号で示す | 画面 | FR-42〜45, FR-18 |
@@ -288,6 +288,7 @@ classDiagram
 
     class Stats {
         +int empty_removed
+        +int duplicates_found
         +int duplicates_removed
         +int cells_trimmed
         +int column_warnings
@@ -324,7 +325,7 @@ classDiagram
 - `Record.line_start` と `line_end` は元ファイルでの行番号。複数行にまたがるセルがあると、この2つが異なる。
 - `exportable()` は、レベルが ERROR の課題（CP932 で表せない文字など）がないときに真を返す。
 - `NewlineStyle` は元ファイルで使われていた改行コード（`LF`・`CRLF`・`CR`・混在 `MIXED`）を表す列挙型。画面上部の「変換元 → 変換先」の表示（FR-47）に使う。図が大きくなるため省略した。
-- `IssueCode` は課題の種類（列数の不一致、制御文字、見えない文字、複数行セル、数式化、CP932 で表せない文字、先頭の空行、データ行なし）を表す列挙型。図が大きくなるため省略した。
+- `IssueCode` は課題の種類（列数の不一致、制御文字、見えない文字、複数行セル、数式化、CP932 で表せない文字、先頭の空行、データ行なし、重複あり）を表す列挙型。図が大きくなるため省略した。
 
 ### 7.2 処理と例外
 
@@ -479,7 +480,8 @@ sequenceDiagram
     else 出力できる
         S->>S: CSV を書き出す
         S-->>R: bytes
-        R-->>B: 200 CSV（ファイル名 xxx_tidy.csv）
+        R-->>B: 200 CSV（バイト列）
+        B->>B: ファイル名を付ける（元の名前_tidy.csv）
         B-->>U: ファイルを保存
     end
 ```
@@ -526,10 +528,12 @@ flowchart TD
     empty -- はい --> doempty["空行を削除 → 変更を記録"]
     empty -- いいえ --> cols
     doempty --> cols["列数の検査 → 警告"]
-    cols --> dedupe{"重複の削除が有効か"}
+    cols --> finddup["重複行を検出"]
+    finddup --> dedupe{"重複の削除が有効か"}
     dedupe -- はい --> dodedupe["重複行を削除 → 変更を記録"]
-    dedupe -- いいえ --> formula
+    dedupe -- いいえ --> dupinfo["情報: 重複が N 件あります"]
     dodedupe --> formula["数式化の検査 → 警告"]
+    dupinfo --> formula
     formula --> dataRows{"データ行があるか"}
     dataRows -- いいえ --> info["情報: データ行がありません"]
     dataRows -- はい --> enc
@@ -609,7 +613,7 @@ stateDiagram-v2
 | `GET /` | 画面を返す | なし | `index.html` |
 | `GET /static/...` | JS・CSS を返す | なし | 静的ファイル |
 | `POST /api/tidy` | 整形結果を返す | `multipart/form-data`（ファイルと文字データを一緒に送る形式）: `file`（CSV）、`options`（設定の JSON 文字列） | 200、JSON（11.2） |
-| `POST /api/export` | 整形後の CSV を返す | `/api/tidy` と同じ | 200、CSV のバイト列。`Content-Disposition` ヘッダーで `xxx_tidy.csv` というファイル名を付ける |
+| `POST /api/export` | 整形後の CSV を返す | `/api/tidy` と同じ | 200、CSV のバイト列。保存するファイル名は画面側で付ける（13 章 D7） |
 
 ### 11.1 設定（options）
 
@@ -618,7 +622,7 @@ stateDiagram-v2
   "input_encoding": null,
   "trim": true,
   "remove_empty": true,
-  "dedupe": true,
+  "dedupe": false,
   "output_encoding": "utf-8",
   "newline": "lf"
 }
@@ -627,6 +631,7 @@ stateDiagram-v2
 - `input_encoding`: `null`（自動判定）、`"utf-8-sig"`、`"utf-8"`、`"cp932"`
 - `output_encoding`: `"utf-8"`、`"utf-8-bom"`、`"cp932"`
 - `newline`: `"lf"`、`"crlf"`
+- 上の例は初期状態の値。`trim` と `remove_empty` は `true`、`dedupe` は `false`（FR-22）
 
 ### 11.2 整形結果（`POST /api/tidy` の応答）
 
@@ -647,10 +652,11 @@ stateDiagram-v2
   "issues": [
     { "level": "warning", "code": "column_count", "record": 5, "column": null, "detail": "列数 2（ヘッダーは 3）" }
   ],
-  "stats": { "empty_removed": 0, "duplicates_removed": 1, "cells_trimmed": 1, "column_warnings": 1, "formula_warnings": 0 }
+  "stats": { "empty_removed": 0, "duplicates_found": 1, "duplicates_removed": 1, "cells_trimmed": 1, "column_warnings": 1, "formula_warnings": 0 }
 }
 ```
 
+- この応答例は、`dedupe` を `true` にしたときのもの。
 - 課題（`issues`）はすべて返し、「最初の 20 件」に絞るのは画面側で行う。
 - 変更後の値は、画面側で `records` に `changes` を当てはめて求める。
 
@@ -685,3 +691,4 @@ stateDiagram-v2
 | D4 | CSV 解析は Python の `csv` モジュールを使い、自分で書かない | 実績があり、状態遷移図 10.1 のとおり必要な検出ができる | 自前の状態機械で解析する（行番号の扱いは自由になるが、実装とテストの量が増える） |
 | D5 | サイズの検査を画面と API の両方で行う | 画面側で先に止めて無駄な送信を避け、API 側でも必ず守る | API 側だけで行う |
 | D6 | 依存の向きをテストで確かめる | 図と実装がずれないようにするため。追加のツールは使わない | import-linter などの専用ツールを使う |
+| D7 | ダウンロードするファイルの名前はブラウザ側で付ける（JavaScript の `download` 属性） | ブラウザは元のファイル名を知っている。サーバー側で付けると、日本語の名前に `Content-Disposition` ヘッダーの特別な書き方（RFC 5987 形式）が必要になる | サーバーが `Content-Disposition` ヘッダーで名前を付ける |
