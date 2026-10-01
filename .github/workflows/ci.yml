@@ -1,0 +1,21 @@
+# ワークフローの名前（Actions タブや PR に表示される）
+name: CI
+
+# いつ実行するか
+on:
+  pull_request:          # プルリクエストを作ったとき・更新したとき
+  push:
+    branches: [main]     # main に取り込まれたとき
+
+jobs:
+  check:                       # ジョブの名前
+    runs-on: ubuntu-latest     # GitHub が用意する Linux の仮想マシンで実行する
+    steps:
+      - name: リポジトリの中身を取得する
+        uses: actions/checkout@v4   # 公開されている部品（アクション）を使う
+
+      - name: あいさつ
+        run: echo "Hello CI"
+
+      - name: docs フォルダの中身を表示する
+        run: ls -la docs
