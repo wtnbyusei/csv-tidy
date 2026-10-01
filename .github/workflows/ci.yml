@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4   # 公開されている部品（アクション）を使う
 
       - name: あいさつ
-        run: exit 1
+        run: echo "Hello CI"
 
       - name: docs フォルダの中身を表示する
         run: ls -la docs
