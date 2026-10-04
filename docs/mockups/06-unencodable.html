@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>csv-tidy 画面の見本: ダウンロードできない状態</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- 動かない見本。画面設計書 docs/screen-design.md の「ダウンロードできない状態」に対応する。 -->
+<div class="app">
+  <header class="app-header"><h1>csv-tidy</h1><span>CSV を使いやすい形に整える</span></header>
+  <aside class="sidebar">
+  <section class="section">
+    <h2>ファイル</h2>
+    <div class="dropzone has-file">
+      <div class="file-name">顧客一覧.csv</div>
+      <div class="hint">12.4 KB ・ 1,000 行</div>
+      <div style="margin-top:6px"><span class="button">別のファイルを選ぶ</span></div>
+    </div>
+  </section>
+  <section class="section">
+    <h2>読み込み</h2>
+    <div class="field"><label>文字コード</label><div class="select">自動判定（CP932 と判定）</div></div>
+  </section>
+  <section class="section">
+    <h2>整形</h2>
+    <div class="check"><span class="box on"></span><span>セル前後の空白を取り除く<br><span class="hint">半角・全角スペース、タブ、NBSP</span></span></div>
+    <div class="check"><span class="box on"></span><span>空行を削除する</span></div>
+    <div class="check"><span class="box"></span><span>重複行を削除する<div class="hint note">重複が 1 件あります（まだ削除していません）</div></span></div>
+  </section>
+  <section class="section">
+    <h2>出力</h2>
+    <div class="field"><label>文字コード</label><div class="select">CP932</div></div>
+    <div class="field"><label>改行コード</label><div class="radio"><span>LF</span><span class="on">CRLF（Windows）</span></div></div>
+  </section>
+  <section class="section">
+<span class="button block disabled">ダウンロード</span><div class="export-reason">CP932 で表せない文字が 3 件あります。課題タブで場所を確認し、元データを直すか、出力を UTF-8 にしてください。</div>
+  </section>
+  </aside>
+  <main class="main">
+    <div class="summary">
+      <div class="conv"><b>文字コード</b> CP932（自動判定）→ CP932　<b>改行</b> LF → CRLF</div>
+      <div class="counts">
+        <span class="count trimmed">トリム 2 セル</span>
+        <span class="count removed">空行の削除 1 行</span>
+        <span class="count info">重複 1 件（未削除）</span>
+        <span class="count warn">列数の警告 1</span>
+        <span class="count warn">見えない文字 1</span>
+        <span class="count">数式化の警告 0</span><span class="count warn">CP932 で表せない文字 3</span>
+      </div>
+    </div>
+    <div>
+    <div class="tabs"><span class="tab">差分</span><span class="tab on">課題（7）</span></div>
+    <div class="panel">
+      <details class="issue-group error" open>
+        <summary class="issue-head">エラー（ダウンロードできません）<span class="count warn">3 件</span></summary>
+        <div class="issue-head" style="font-weight:normal">CP932 で表せない文字（3 件）</div>
+        <ul>
+          <li><a href="#">9 行目・名前の列: 「😀」（U+1F600）→ 差分で見る</a></li>
+          <li><a href="#">15 行目・住所の列: 「—」（U+2014）→ 差分で見る</a></li>
+          <li><a href="#">40 行目・名前の列: 「𠮷」（U+20BB7）→ 差分で見る</a></li>
+        </ul>
+        <div class="issue-more">対処: 元のデータを直すか、出力の文字コードを UTF-8 にしてください。</div>
+      </details>
+      <details class="issue-group warn" open>
+        <summary class="issue-head">警告<span class="count warn">2 件</span></summary>
+        <div class="issue-head" style="font-weight:normal">列数がヘッダーと違う行（1 件）</div>
+        <ul><li><a href="#">5 行目: 列数 3（ヘッダーは 4）→ 差分で見る</a></li></ul>
+        <div class="issue-head" style="font-weight:normal">見えない文字（1 件）</div>
+        <ul><li><a href="#">6 行目・名前の列: ゼロ幅スペース（U+200B）→ 差分で見る</a></li></ul>
+      </details>
+      <details class="issue-group info" open>
+        <summary class="issue-head">情報<span class="count info">2 件</span></summary>
+        <div class="issue-head" style="font-weight:normal">重複している行（1 件）・重複行の削除はオフです</div>
+        <ul><li><a href="#">7 行目: 2 行目と同じ → 差分で見る</a></li></ul>
+        <div class="issue-head" style="font-weight:normal">複数行にまたがるセル（1 件）</div>
+        <ul><li><a href="#">812〜813 行目・住所の列 → 差分で見る</a></li></ul>
+      </details>
+      <div class="issue-more">種類ごとに最初の 20 件を表示します。21 件目以降は「さらに表示」で表示します。</div>
+    </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

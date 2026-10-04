@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>csv-tidy 画面の見本: 結果の表示中（差分タブ）</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- 動かない見本。画面設計書 docs/screen-design.md の「結果の表示中（差分タブ）」に対応する。 -->
+<div class="app">
+  <header class="app-header"><h1>csv-tidy</h1><span>CSV を使いやすい形に整える</span></header>
+  <aside class="sidebar">
+  <section class="section">
+    <h2>ファイル</h2>
+    <div class="dropzone has-file">
+      <div class="file-name">顧客一覧.csv</div>
+      <div class="hint">12.4 KB ・ 1,000 行</div>
+      <div style="margin-top:6px"><span class="button">別のファイルを選ぶ</span></div>
+    </div>
+  </section>
+  <section class="section">
+    <h2>読み込み</h2>
+    <div class="field"><label>文字コード</label><div class="select">自動判定（CP932 と判定）</div></div>
+  </section>
+  <section class="section">
+    <h2>整形</h2>
+    <div class="check"><span class="box on"></span><span>セル前後の空白を取り除く<br><span class="hint">半角・全角スペース、タブ、NBSP</span></span></div>
+    <div class="check"><span class="box on"></span><span>空行を削除する</span></div>
+    <div class="check"><span class="box"></span><span>重複行を削除する<div class="hint note">重複が 1 件あります（まだ削除していません）</div></span></div>
+  </section>
+  <section class="section">
+    <h2>出力</h2>
+    <div class="field"><label>文字コード</label><div class="select">UTF-8（BOM 付き・Excel 向け）</div></div>
+    <div class="field"><label>改行コード</label><div class="radio"><span>LF</span><span class="on">CRLF（Windows）</span></div></div>
+  </section>
+  <section class="section">
+<span class="button primary block">ダウンロード</span><div class="hint" style="text-align:center">顧客一覧_tidy.csv</div>
+  </section>
+  </aside>
+  <main class="main">
+    <div class="summary">
+      <div class="conv"><b>文字コード</b> CP932（自動判定）→ UTF-8（BOM 付き）　<b>改行</b> LF → CRLF</div>
+      <div class="counts">
+        <span class="count trimmed">トリム 2 セル</span>
+        <span class="count removed">空行の削除 1 行</span>
+        <span class="count info">重複 1 件（未削除）</span>
+        <span class="count warn">列数の警告 1</span>
+        <span class="count warn">見えない文字 1</span>
+        <span class="count">数式化の警告 0</span>
+      </div>
+    </div>
+    <div>
+    <div class="tabs"><span class="tab on">差分</span><span class="tab">課題（4）</span></div>
+    <div class="panel">
+      <div class="toolbar">
+        <div class="radio"><span class="on">変更箇所のみ</span><span>全行</span></div>
+        <span class="button">◀ 前の変更</span><span class="button">次の変更 ▶</span>
+        <span class="hint">変更 3 / 6</span>
+        <div class="legend">
+          <span><span class="swatch" style="background:var(--trimmed)"></span>トリムしたセル</span>
+          <span><span class="swatch" style="background:var(--removed)"></span>削除した行</span>
+          <span><span class="swatch" style="background:var(--missing)"></span>セルなし</span>
+          <span><span class="ws"></span>半角 <span class="ws full"></span>全角の取り除いた空白</span>
+          <span><span class="mark">ZWSP</span> 見えない文字</span>
+        </div>
+      </div>
+      <div class="diff">
+        <div>
+          <h3>変更前（元のファイルの行番号）</h3>
+          <table>
+            <tr><th class="ln">行</th><th>名前</th><th>年齢</th><th>住所</th><th>電話</th></tr>
+            <tr><td class="ln">2</td><td>山田太郎</td><td>30</td><td>東京都</td><td>03-1111-2222</td></tr>
+            <tr><td class="ln">3</td><td class="trimmed"><span class="ws"></span><span class="ws"></span>佐藤花子<span class="ws full"></span></td><td>25</td><td>大阪府</td><td>06-3333-4444</td></tr>
+            <tr class="removed"><td class="ln">4</td><td></td><td></td><td></td><td></td></tr>
+            <tr class="focus"><td class="ln">5</td><td>鈴木一郎</td><td>41</td><td>愛知県</td><td class="missing">セルなし</td></tr>
+            <tr><td class="ln">6</td><td>田中<span class="mark">ZWSP</span>次郎</td><td>28</td><td>福岡県</td><td>092-555-6666</td></tr>
+            <tr class="dup"><td class="ln">7</td><td>山田太郎</td><td>30</td><td>東京都</td><td>03-1111-2222</td></tr>
+            <tr><td class="ln">8</td><td>高橋三郎</td><td class="trimmed">52<span class="ws"></span></td><td>北海道</td><td>011-777-8888</td></tr>
+            <tr class="gap"><td colspan="5">… 変更のない 990 行を省略 …</td></tr>
+          </table>
+        </div>
+        <div>
+          <h3>変更後（出力するファイルの行番号）</h3>
+          <table>
+            <tr><th class="ln">行</th><th>名前</th><th>年齢</th><th>住所</th><th>電話</th><th class="note">備考</th></tr>
+            <tr><td class="ln">2</td><td>山田太郎</td><td>30</td><td>東京都</td><td>03-1111-2222</td><td class="note"></td></tr>
+            <tr><td class="ln">3</td><td class="trimmed">佐藤花子</td><td>25</td><td>大阪府</td><td>06-3333-4444</td><td class="note">トリム 1</td></tr>
+            <tr class="placeholder"><td class="ln"></td><td colspan="4">（出力しない）</td><td class="note"><span class="badge">削除: 空行</span></td></tr>
+            <tr class="focus"><td class="ln">4</td><td>鈴木一郎</td><td>41</td><td>愛知県</td><td class="missing">セルなし</td><td class="note"><span class="badge warn">列数 3 / 4</span></td></tr>
+            <tr><td class="ln">5</td><td>田中<span class="mark">ZWSP</span>次郎</td><td>28</td><td>福岡県</td><td>092-555-6666</td><td class="note"><span class="badge warn">見えない文字</span></td></tr>
+            <tr class="dup"><td class="ln">6</td><td>山田太郎</td><td>30</td><td>東京都</td><td>03-1111-2222</td><td class="note"><span class="badge dup">重複: 2 行目と同じ</span></td></tr>
+            <tr><td class="ln">7</td><td>高橋三郎</td><td class="trimmed">52</td><td>北海道</td><td>011-777-8888</td><td class="note">トリム 1</td></tr>
+            <tr class="gap"><td colspan="6">… 変更のない 990 行を省略 …</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
