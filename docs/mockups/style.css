@@ -94,7 +94,10 @@ body {
 table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 th, td { border: 1px solid var(--line); padding: 2px 6px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 th { background: #f6f8fa; font-weight: bold; }
-td.note, th.note { width: 150px; white-space: normal; }
+/* 備考の列: 出力されない補足なので、データの列から離し、見た目も変える */
+td.note, th.note { width: 158px; white-space: normal; border: 0; border-left: 10px solid var(--panel); background: #f6f8fa; color: var(--muted); font-size: 11px; }
+th.note { background: transparent; font-weight: normal; font-style: italic; }
+tr.removed td.note, tr.placeholder td.note, tr.dup td.note, tr.focus td.note { background: #f6f8fa; outline: none; }
 td.ln, th.ln { width: 44px; color: var(--muted); text-align: right; background: #f6f8fa; }
 tr.removed td { background: var(--removed); }
 tr.removed td.ln { box-shadow: inset 3px 0 var(--removed-line); }
