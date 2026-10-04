@@ -88,16 +88,22 @@ body {
 .legend { display: flex; gap: 10px; margin-left: auto; color: var(--muted); font-size: 11px; }
 .swatch { display: inline-block; width: 10px; height: 10px; border: 1px solid var(--line); margin-right: 3px; vertical-align: -1px; }
 
+/* 差分表示: 左右の表の間に「変更」の帯を置く（案A） */
+.diff3 { display: grid; grid-template-columns: 1fr 180px 1fr; }
+.diff3 h3 { margin: 0 0 4px; font-size: 12px; color: var(--muted); }
+.diff3 td, .diff3 th { height: 28px; vertical-align: middle; }
+.gutter h3 { text-align: center; }
+.gutter td, .gutter th { border-left: 0; border-right: 0; background: #f6f8fa; text-align: left; padding-left: 8px; }
+.gutter th { font-weight: normal; color: var(--muted); font-size: 11px; }
+.gutter .arrow { color: #8c959f; margin-right: 4px; }
+.gutter .badge { margin-left: 0; }
+.note-text { color: var(--muted); font-size: 11px; }
 /* 差分表示: 左右に並べる */
 .diff { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .diff h3 { margin: 0 0 4px; font-size: 12px; color: var(--muted); }
 table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 th, td { border: 1px solid var(--line); padding: 2px 6px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 th { background: #f6f8fa; font-weight: bold; }
-/* 備考の列: 出力されない補足なので、データの列から離し、見た目も変える */
-td.note, th.note { width: 158px; white-space: normal; border: 0; border-left: 10px solid var(--panel); background: #f6f8fa; color: var(--muted); font-size: 11px; }
-th.note { background: transparent; font-weight: normal; font-style: italic; }
-tr.removed td.note, tr.placeholder td.note, tr.dup td.note, tr.focus td.note { background: #f6f8fa; outline: none; }
 td.ln, th.ln { width: 44px; color: var(--muted); text-align: right; background: #f6f8fa; }
 tr.removed td { background: var(--removed); }
 tr.removed td.ln { box-shadow: inset 3px 0 var(--removed-line); }
