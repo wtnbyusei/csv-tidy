@@ -660,7 +660,7 @@ stateDiagram-v2
     { "type": "row_removed", "record": 2, "reason": "duplicate", "duplicate_of": 1 }
   ],
   "issues": [
-    { "level": "warning", "code": "column_count", "record": 5, "column": null, "detail": "列数 2（ヘッダーは 3）" }
+    { "level": "warning", "code": "column_count", "record": 5, "column": null, "related_record": null, "detail": "列数 2（ヘッダーは 3）" }
   ],
   "stats": { "cells_trimmed": 1, "empty_removed": 0, "duplicates_found": 1, "duplicates_removed": 1, "column_warnings": 1, "control_chars": 0, "invisible_chars": 0, "formula_warnings": 0, "unencodable_chars": 0 }
 }
@@ -674,13 +674,14 @@ stateDiagram-v2
 
 | HTTP ステータス | `code` | 場面 | 追加の項目 |
 | --- | --- | --- | --- |
-| 413 | `file_too_large` | 10,485,760 バイトを超える | なし |
+| 413 | `file_too_large` | 10,485,760 バイトを超える | `limit` |
 | 422 | `empty_data` | 0 バイト、または空行だけ | なし |
 | 422 | `not_csv` | NUL 文字を含む | `looks_like_xlsx` |
-| 422 | `decode_failed` | どの文字コードでもデコードできない | なし |
+| 422 | `decode_failed` | どの文字コードでもデコードできない、または指定した文字コードで読めない | `encoding`（指定した文字コード。自動判定なら null） |
 | 422 | `csv_syntax` | CSV の書き方の誤り | `line` |
 | 422 | `unencodable` | `/api/export` で CP932 に出力できない | `count` |
-| 422 | `invalid_options` | 設定の値が不正 | `detail` |
+| 422 | `invalid_options` | 設定の値が不正（JSON でない、知らない項目、値が選択肢にない） | `fields`（誤りのある項目名） |
+| 422 | `invalid_request` | ファイルが送られていないなど、送られてきた形が正しくない | `fields` |
 
 形は `{"error": {"code": "...", "message": "日本語のメッセージ", ...追加の項目}}` にそろえる。
 
@@ -724,4 +725,8 @@ stateDiagram-v2
 | I13 | 7 | `Stats` に `control_chars`・`invisible_chars`・`unencodable_chars` を追加した。7.1 のクラス図と 11.2 の応答例も更新 | 画面設計書 4.1 の概要で、見えない文字や CP932 で表せない文字の件数も表示するため |
 | I14 | 7 | CP932 で表せない文字の件数は「1つのセルの中の同じ文字を 1 件」として数える。検査するのは出力する行（ヘッダーを含む）だけ | 削除した行は出力されないため。数え方は、作業6 の制御文字・見えない文字の課題とそろえた |
 | I15 | 7 | 10.4MB の試験データで、整形結果（`tidy`）は約 1.4 秒、出力（`export`）は約 1.6〜1.9 秒 | 表示とダウンロードは別のリクエストなので、NFR-01（表示まで 5 秒以内）の対象は `tidy` の時間 |
+| I16 | 8 | `/api/tidy` の JSON への変換に orjson（C 言語で書かれた速い JSON ライブラリ）を使う。依存ライブラリに追加した。コアからは使わない（依存の向きのテストで禁止） | 約 10MB（9万6千行）のファイルで応答は 17.6MiB になり、標準の json では変換に 0.7〜0.9 秒かかった。orjson では 0.02 秒で、出力の中身は同じ。`/api/tidy` 全体で 3.3〜3.8 秒から 1.9〜2.5 秒になり、NFR-01（5 秒以内）に画面の表示の時間を残せる |
+| I17 | 8 | 開発用のライブラリを `httpx` から `httpx2` に替えた | FastAPI の土台の Starlette（1.7.0）が、TestClient で `httpx` を使うことを非推奨にし、`httpx2`（pydantic の公式リポジトリで配布）を求める警告を出すため |
+| I18 | 8 | エラー応答に `invalid_request`（ファイルが送られていない、など）を追加した。11.3 の表も更新 | FastAPI が標準で返す形（`detail`）を、設計書の形（`error.code`・`error.message`）にそろえるため |
+| I19 | 8 | `/api/export` は `Content-Disposition` を付けず、`Content-Type` で文字コードを伝える（CP932 は `windows-31j`） | 保存するファイル名は画面側で付ける（D7）。`windows-31j` は CP932 の IANA（インターネットの名前を管理する団体）での登録名 |
 

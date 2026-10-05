@@ -231,6 +231,8 @@
 | マトリックス | matrix | GitHub Actions で、同じジョブを条件（Python の版など）を変えて何回か実行する仕組み |
 | キャッシュ | cache | 一度ダウンロードしたものを保存しておき、次回に再利用して速くする仕組み |
 | エントリーポイント | entry point | プログラムを起動する入口。このプロジェクトでは `uv run csv-tidy` で `csv_tidy/__main__.py` の `main` が動く |
-| httpx | エイチティーティーピーエックス | Python で HTTP の通信をするライブラリ。FastAPI の TestClient が内部で使う |
+| httpx / httpx2 | エイチティーティーピーエックス | Python で HTTP の通信をするライブラリ。FastAPI の TestClient が内部で使う。httpx2 は後継の版で、このプロジェクトでは httpx2 を使う |
+| orjson | オージェイソン | C 言語で書かれた、Python 用の速い JSON 変換ライブラリ。API が大きな整形結果を返すときに使う |
+| IANA | アイアナ / Internet Assigned Numbers Authority | インターネットで使う名前や番号（文字コードの名前など）を管理する団体 |
 | python-multipart | パイソン マルチパート | FastAPI がファイルのアップロード（multipart/form-data）を受け取るために使うライブラリ |
 
