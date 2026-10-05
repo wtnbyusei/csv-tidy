@@ -102,9 +102,49 @@ jobs:
 
 アクションの版は、追加した時点（2026-10-05）で最新の v7 にした。手順1で使った `actions/checkout@v4` も v7 に上げている。
 
-E2E テストのジョブ `e2e` は、画面を作る作業9（`feat/web-ui`）で追加する。
+## 6. 画面の作業で追加したもの（E2E テスト）
 
-## 6. 注意
+画面を作る作業9（`feat/web-ui`）で、E2E テスト（本物のブラウザで画面を操作するテスト）を実行するジョブ `e2e` を追加した。`test` ジョブと並んで同時に動く。
+
+```yaml
+  e2e:
+    runs-on: ubuntu-latest
+    name: e2e (Chromium)
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --locked --group e2e
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run pytest -m e2e --tracing retain-on-failure --output test-results
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+```
+
+| 部分 | 意味 |
+| --- | --- |
+| `--group e2e` | E2E 用の依存グループ（用途ごとに分けたライブラリのまとまり）も入れる。Playwright はこのグループにだけ入れているので、`test` ジョブには入らない |
+| `playwright install --with-deps chromium` | Chromium（Chrome のもとになっているブラウザ）と、それを動かすのに必要な OS の部品を入れる |
+| `pytest -m e2e` | `e2e` のマーカーが付いたテストだけを実行する。テストの中で、アプリを `127.0.0.1` の空いているポートに起動する |
+| `--tracing retain-on-failure` | 失敗したテストだけ、操作・画面・通信の記録（トレース）を `test-results/` に残す |
+| `if: failure()` | 前のステップが失敗したときだけ、このステップを実行する |
+| `actions/upload-artifact` | ファイルを CI のアーティファクトとして保存する。実行結果の画面の下の「Artifacts」からダウンロードできる |
+
+E2E テストが失敗したときは、次の手順で原因を調べる。
+
+1. プルリクエストのチェックの「e2e (Chromium)」の「Details」を押し、どのテストのどの行で失敗したかをログで確かめる。
+2. 実行結果の画面（Summary）の下にある「Artifacts」から `playwright-traces` をダウンロードして展開する。
+3. 中の `trace.zip` を <https://trace.playwright.dev/> に読み込ませると、テストの各操作の時点の画面を順に見られる（ファイルはブラウザの中だけで読まれ、外に送られない）。
+
+手元で実行する手順は、テスト計画書（[test-plan.md](test-plan.md)）の 3 章にある。
+
+## 7. 注意
 
 - `actions/checkout@v4` の `@v4` はアクションの版の指定。より新しい版が出ている可能性があるが、v4 で動く。
 - ワークフローのファイルは YAML なので、字下げ（半角スペース）がずれると動かない。タブ文字は使えない。

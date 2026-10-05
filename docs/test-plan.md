@@ -39,7 +39,17 @@ v0.1 の要件（FR・NFR）と受け入れ基準を、どのテストで、い�
 | ジョブ | 内容 | 失敗とする条件 |
 | --- | --- | --- |
 | `test` | `uv run pytest`（U・P・I・D）とカバレッジの測定。Python 3.11（最低の版）と 3.13 の2つで実行する | テストが1つでも失敗する。コアのカバレッジが 90% 未満（4章） |
-| `e2e` | アプリを起動し、Chromium で E テストを実行する | テストが1つでも失敗する |
+| `e2e` | アプリを起動し、Chromium で E テストを実行する。Python 3.13 だけで実行する。失敗したテストは、操作の記録（トレース）を CI のアーティファクトとして 7 日間保存する | テストが1つでも失敗する |
+
+E2E テストは作業9で `tests/e2e/test_web_ui.py` に作った。手元では次の手順で実行する。Playwright は E2E 用の依存グループ `e2e` に分けているので、`uv sync` だけでは入らない（`test` ジョブを軽く保つため）。Playwright が入っていない環境では、`tests/e2e/` のテストは集めない。
+
+```sh
+uv sync --group e2e
+uv run playwright install chromium   # 初回だけ。Chromium をダウンロードする
+uv run pytest -m e2e
+```
+
+別の版の Chromium しか使えない環境では、環境変数 `E2E_CHROMIUM_PATH` に Chromium の実行ファイルを指定する。
 
 性能測定（PERF）は CI では実行しない。GitHub が用意する仮想マシンは性能が一定ではなく、5 秒という基準を安定して判定できないため。
 
@@ -83,12 +93,14 @@ E2E と手動確認で、実際にファイルを選ぶ操作に使う。
 
 | ファイル | 内容 | 使う場面 |
 | --- | --- | --- |
-| `customers_cp932.csv` | 画面の見本と同じ「顧客一覧」。CP932・CRLF。前後の空白、空行、列数の不一致、ゼロ幅スペース、重複を 1 つずつ含む | E2E の主要な流れ、手動確認、README のスクリーンショット |
-| `customers_utf8_bom.csv` | 上と同じ内容を UTF-8（BOM 付き）で保存したもの | E2E、手動確認 |
+| `customers_cp932.csv` | 画面の見本と同じ「顧客一覧」（1,000 行）。CP932・CRLF。前後の空白、空行、列数の不一致、重複を 1 つずつと、812〜813 行目にまたがるセルを含む。ゼロ幅スペース（U+200B）は CP932 で表せないため入れていない | E2E の主要な流れ、手動確認、README のスクリーンショット |
+| `customers_utf8_bom.csv` | 上と同じ内容に、6 行目のゼロ幅スペースを加えて UTF-8（BOM 付き）で保存したもの | 手動確認（見えない文字の表示）、README のスクリーンショット |
 | `broken_quote.csv` | 3 行目でクォートを閉じ忘れたもの | E2E（エラー表示） |
 | `xss.csv` | `<script>alert(1)</script>` と `<img src=x onerror=alert(1)>` を値に含むもの | E2E（NFR-07） |
 | `emoji.csv` | 絵文字と `—`（U+2014）を含むもの。CP932 で出力できない | E2E（ダウンロードできない状態） |
 | `not_csv.xlsx` | 小さな Excel ファイル | E2E・手動確認（xlsx の案内） |
+
+これらのファイルは `tests/fixtures/make_fixtures.py` で作る（`uv run python tests/fixtures/make_fixtures.py`）。中身を変えるときは、このスクリプトを直して作り直す。1000 行中 999 行目だけを変える受け入れ基準 9 のデータなどは、E2E テストのコードの中で作る。
 
 10MB の性能測定用のデータはリポジトリに置かず、`scripts/gen_bench_data.py` で毎回作る（設計書 5 章）。
 
@@ -214,6 +226,27 @@ E2E と手動確認で、実際にファイルを選ぶ操作に使う。
 | 21 | 10MB で 5 秒以内 | PERF |
 | 22 | 初期状態では重複を削除せず、件数と該当行を表示する | U, I |
 | 23 | 保存するファイル名が `顧客一覧_tidy.csv` になる | E |
+
+### 9.4 E2E テストと要件の対応（作業9 で作成）
+
+`tests/e2e/test_web_ui.py` のテストと、確かめている要件・受け入れ基準。
+
+| テスト | 確かめること | 要件・受け入れ基準 |
+| --- | --- | --- |
+| `test_main_flow_shows_summary_diff_and_issues` | 概要（変換・件数）、変更の帯、取り除いた空白の印、出力しない行、セルなし、前後の変更への移動、全行のページ分け、課題から差分の行への移動 | FR-01, 40〜47 |
+| `test_drag_and_drop_reads_file` | ドラッグ＆ドロップで読み込める | FR-01 |
+| `test_after_table_matches_downloaded_csv` | 画面で組み立てた変更後の値が、ダウンロードした CSV と一致する | FR-41、設計書 D2 |
+| `test_change_on_line_999_of_1000_is_shown` | 1000 行中 999 行目だけの変更が「変更箇所のみ」に表示され、ほかは省略される | FR-44、受け入れ基準 9 |
+| `test_download_is_named_after_original_file` | 保存するファイル名が `顧客一覧_tidy.csv` になる | FR-50、受け入れ基準 23 |
+| `test_download_name_drops_any_extension` | `data.txt`・`data` が `data_tidy.csv` になる | FR-50 |
+| `test_too_large_file_is_rejected_before_sending` | 10MB を超えるファイルはサーバーに送らずにエラーを表示する | FR-02、受け入れ基準 6 |
+| `test_manual_input_encoding_rereads_file` | 文字コードを指定すると、その文字コードで読み直す（誤った指定ではエラー） | FR-12、受け入れ基準 16 |
+| `test_unencodable_characters_disable_download` | CP932 で表せない文字があるとダウンロードを押せず、理由・件数・位置を表示し、差分で文字を囲む | FR-16、受け入れ基準 11 |
+| `test_html_in_values_is_shown_as_text` | `<script>` などを含む値が実行されず、文字として表示される | NFR-07、受け入れ基準 12 |
+| `test_errors_are_explained` | クォートの誤りと xlsx で、見出し・説明を表示する | FR-05, 17、画面設計書 6 章 |
+| `test_last_option_change_wins` | 設定を続けて変えると、最後の設定の結果だけを表示する | 画面設計書 5 章 |
+
+あわせて、API のテスト（`tests/api/test_api.py`）で、画面の配信（`GET /`・`/static/`）、CSP の付与、画面の JavaScript が `.innerHTML` などを使っていないことを確かめる。
 
 ## 10. 開発計画への反映
 
