@@ -41,6 +41,29 @@ def customers(*, with_zwsp: bool) -> list[list[str]]:
     return rows
 
 
+def manual_check() -> list[list[str]]:
+    """手動確認 M4 と受け入れ基準 13・14・15 の確認用。差分の色・記号・帯がひととおり出る。
+
+    1 列目に、その行で確かめることを書いておく。
+    """
+    return [
+        ["確かめること", "値", "メモ"],
+        ["前後の半角・全角の空白（基準 2）", "  山田　", "山田　太郎"],
+        ["タブと NBSP（基準 15）", "\tタブ\u00a0", "ok"],
+        ["除去しない文字（基準 15）", "NEL\u0085", "LS\u2028"],
+        ["空白を取ると数式になる（基準 13）", " =1+1", "ok"],
+        ["元から数式（警告しない）", "=1+1", "-5"],
+        ["ゼロ幅スペースだけが違う（基準 14）", "山田\u200b花子", "同じ見た目"],
+        ["ゼロ幅スペースだけが違う（基準 14）", "山田花子", "同じ見た目"],
+        ["制御文字 DEL（基準 14）", "DEL\x7f", "ok"],
+        ["", "", ""],  # 空行
+        ["列数が足りない", "セルが 2 つ"],
+        ["複数行のセル", "1 行目\n2 行目", "ok"],
+        ["完全な重複", "同じ", "同じ"],
+        ["完全な重複", "同じ", "同じ"],
+    ]
+
+
 def to_csv(rows: list[list[str]], newline: str) -> str:
     def cell(value: str) -> str:
         if any(c in value for c in ',"\r\n'):
@@ -110,6 +133,7 @@ def main() -> None:
         ).encode(),
         "emoji.csv": to_csv([["名前", "メモ"], ["山田😀", "A—B"], ["佐藤", "ok"]], "\n").encode(),
         "not_csv.xlsx": minimal_xlsx(),
+        "manual_check.csv": to_csv(manual_check(), "\r\n").encode("utf-8-sig"),
     }
     for name, content in files.items():
         (HERE / name).write_bytes(content)

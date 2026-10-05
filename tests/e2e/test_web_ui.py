@@ -137,6 +137,8 @@ def test_change_on_line_999_of_1000_is_shown(page: Page):
     expect(before_row(page, "999").locator("td.trimmed")).to_have_count(1)
     expect(page.get_by_test_id("diff-before")).to_contain_text("… 変更のない 995 行を省略 …")
     expect(page.get_by_test_id("change-position")).to_have_text("変更 ― / 1")
+    # 変更の件数にも反映される
+    expect(page.get_by_test_id("counts")).to_contain_text("空白を取り除いた 1 セル")
 
 
 # ---- ダウンロード（FR-50, 受け入れ基準 23） ----
@@ -232,6 +234,47 @@ def test_html_in_values_is_shown_as_text(page: Page, fixture_path):
     assert dialogs == []
 
 
+# ---- 差分で強調・記号として見えるもの（受け入れ基準 13・14、FR-48, FR-18） ----
+
+
+def test_formula_like_and_invisible_characters_are_marked_in_diff(page: Page, fixture_path):
+    open_file(page, fixture_path("manual_check.csv"))
+    wait_result(page)
+    before = page.get_by_test_id("diff-before")
+    gutter = page.get_by_test_id("diff-gutter")
+    after = page.get_by_test_id("diff-after")
+
+    # 基準 13: 空白を取ると数式になるセルだけを強調する。元から数式の値は強調しない
+    expect(after.locator("td.formula")).to_have_count(1)
+    expect(after.locator("td.formula")).to_have_text("=1+1")
+    expect(gutter.locator(".badge", has_text="数式になる値")).to_have_count(1)
+
+    # 基準 14: ゼロ幅スペースは記号で見え、見た目が同じ行どうしは重複にならない
+    expect(before.locator(".mark", has_text="ZWSP")).to_have_count(1)
+    expect(gutter.locator('tr[data-record="6"]')).to_contain_text("見えない文字")
+    expect(gutter.locator('tr[data-record="7"]')).not_to_contain_text("重複")
+    # DEL と C1 制御文字も警告し、記号で見える
+    expect(before.locator(".mark", has_text="DEL")).to_have_count(1)
+    expect(before.locator(".mark", has_text="U+0085")).to_have_count(1)
+    expect(gutter.locator(".badge", has_text="制御文字")).to_have_count(2)
+
+
+# ---- 先頭の空行（受け入れ基準 20） ----
+
+
+def test_leading_blank_rows_are_reported_and_not_exported(page: Page):
+    open_file(page, name="leading.csv", data="\n,,\n名前,年齢\n山田,30\n".encode())
+    wait_result(page)
+    page.get_by_role("tab", name="課題（1）").click()
+    expect(page.locator("#panel-issues")).to_contain_text("先頭の空行 2 行を飛ばしました")
+
+    page.get_by_role("tab", name="差分").click()
+    expect(page.get_by_test_id("diff-gutter")).to_contain_text("削除: 先頭の空行")
+    with page.expect_download() as info:
+        page.get_by_role("button", name="ダウンロード").click()
+    assert info.value.path().read_bytes() == "名前,年齢\n山田,30\n".encode()
+
+
 # ---- 処理を中止するエラー（画面設計書 6 章） ----
 
 
@@ -247,6 +290,14 @@ def test_errors_are_explained(page: Page, fixture_path, name, title, message):
     expect(page.locator("#error-title")).to_have_text(title)
     expect(page.locator("#error-message")).to_contain_text(message)
     expect(page.get_by_role("button", name="ダウンロード")).to_be_disabled()
+
+
+@pytest.mark.parametrize(("name", "data"), [("zero.csv", b""), ("blank.csv", b"\r\n\r\n,,\r\n")])
+def test_empty_files_are_rejected(page: Page, name, data):
+    """受け入れ基準 19: 0 バイトと空行だけのファイルは「データがありません」になる。"""
+    open_file(page, name=name, data=data)
+    expect(page.locator("#error-title")).to_have_text("データがありません")
+    expect(page.locator("#error-message")).to_contain_text("データがありません。")
 
 
 # ---- 設定を続けて変えると、最後の設定の結果だけを表示する（画面設計書 5 章） ----
