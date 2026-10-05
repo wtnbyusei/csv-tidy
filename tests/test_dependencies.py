@@ -16,6 +16,7 @@ FORBIDDEN = {
     "pydantic",
     "starlette",
     "uvicorn",
+    "orjson",
     "csv_tidy.api",
     "csv_tidy.web",
     # ブラウザ内の Python（Pyodide）で使えない、または使うべきでないもの

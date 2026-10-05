@@ -18,6 +18,7 @@
 | 実装の準備 | #6 | 完了 |
 | コア: 読み込み | #7 | 完了 |
 | コア: 整形処理 | #8 | 完了 |
+| コア: 書き出し | #9 | 完了 |
 
 ## 2. v0.1 のスケジュール
 
@@ -31,8 +32,8 @@
 | 4 | 実装の準備 | Claude | `chore/setup-uv` | uv でのプロジェクト作成、ディレクトリの作成、pytest・pytest-cov・Hypothesis の導入、テスト用の関数（`tests/helpers.py`）、依存の向きと待ち受け先のテスト。CI に `test` ジョブ（Python 3.11・3.13、コアのカバレッジ 90%）を追加する | 完了（#6） |
 | 5 | コア: 読み込み | Claude | `feat/core-decoding-parsing` | 文字コードの判定、CSV ではないファイルの検出、CSV 解析、ヘッダー行の決定（FR-03〜08, 10〜13, 17） | 完了（#7） |
 | 6 | コア: 整形処理 | Claude | `feat/core-steps` | トリム、空行、列数、重複、文字の検査、数式化の警告（FR-18〜25, 30〜31, 48） | 完了（#8） |
-| 7 | コア: 書き出し | Claude | `feat/core-writing` | CSV の書き出し、CP932 の検査、コアの入口（FR-14〜16, 50） | 進行中（レビュー待ち） |
-| 8 | API | Claude | `feat/api` | FastAPI の窓口、エラー応答（NFR-02, 08） | 未着手 |
+| 7 | コア: 書き出し | Claude | `feat/core-writing` | CSV の書き出し、CP932 の検査、コアの入口（FR-14〜16, 50） | 完了（#9） |
+| 8 | API | Claude | `feat/api` | FastAPI の窓口、エラー応答（NFR-02, 08） | 進行中（レビュー待ち） |
 | 9 | 画面 | Claude | `feat/web-ui` | 概要、課題の一覧、差分表示、ダウンロード（FR-40〜47, NFR-07）。Playwright による E2E テストとテスト用の CSV ファイル。CI に `e2e` ジョブを追加する | 未着手 |
 | 10 | 受け入れテストと性能測定 | Claude | `test/acceptance-perf` | 受け入れ基準がすべてテストで確かめられているかの点検、10MB で 5 秒以内の確認（NFR-01）、手動確認（test-plan.md 7章） | 未着手 |
 | 11 | README | Claude | `docs/readme` | 概要、スクリーンショット、起動手順、制限事項（NFR-05, 09, 12） | 未着手 |
