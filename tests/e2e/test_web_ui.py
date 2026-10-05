@@ -312,3 +312,29 @@ def test_last_option_change_wins(page: Page, fixture_path):
     trim.uncheck()
     wait_result(page)
     expect(page.get_by_test_id("counts")).to_contain_text("空白を取り除いた 0 セル")
+
+
+# ---- 画面の幅 1280px での表示（手動確認 M3・M4 で見つけた不具合の回帰テスト。設計書 I30・I31） ----
+
+
+def test_four_columns_and_long_line_numbers_fit_at_1280px(page: Page, fixture_path):
+    page.set_viewport_size({"width": 1280, "height": 860})
+    open_file(page, fixture_path("customers_cp932.csv"))
+    wait_result(page)
+    side = page.get_by_test_id("diff-before").locator(".side")
+    # 4 列の表が、横にスクロールしなくても収まる
+    assert side.evaluate("(el) => el.scrollWidth <= el.clientWidth")
+    # 「812〜813」の行番号が切れない
+    line = before_row(page, "812〜813").locator("td.ln")
+    assert line.evaluate("(el) => el.scrollWidth <= el.clientWidth")
+
+
+def test_important_badge_is_visible_in_narrow_change_column(page: Page, fixture_path):
+    page.set_viewport_size({"width": 1280, "height": 860})
+    open_file(page, fixture_path("manual_check.csv"))
+    wait_result(page)
+    # 「空白を取り除いた」と同じ行にあっても、「数式になる値」のバッジが帯の中に見えている
+    cell = page.get_by_test_id("diff-gutter").locator('tr[data-record="4"] td')
+    badge = cell.locator(".badge", has_text="数式になる値")
+    cell_box, badge_box = cell.bounding_box(), badge.bounding_box()
+    assert badge_box["x"] + badge_box["width"] <= cell_box["x"] + cell_box["width"]

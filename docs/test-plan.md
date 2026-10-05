@@ -246,6 +246,11 @@ E2E と手動確認で、実際にファイルを選ぶ操作に使う。
 | `test_html_in_values_is_shown_as_text` | `<script>` などを含む値が実行されず、文字として表示される | NFR-07、受け入れ基準 12 |
 | `test_errors_are_explained` | クォートの誤りと xlsx で、見出し・説明を表示する | FR-05, 17、画面設計書 6 章 |
 | `test_last_option_change_wins` | 設定を続けて変えると、最後の設定の結果だけを表示する | 画面設計書 5 章 |
+| `test_formula_like_and_invisible_characters_are_marked_in_diff` | 空白を取ると数式になるセルを強調し、ゼロ幅スペース・DEL・C1 制御文字を記号で見せる。見た目が同じ行を重複にしない（作業10 で追加） | FR-18, 48、受け入れ基準 13・14 |
+| `test_leading_blank_rows_are_reported_and_not_exported` | 先頭の空行を飛ばしたことを表示し、出力に含めない（作業10 で追加） | FR-04、受け入れ基準 20 |
+| `test_empty_files_are_rejected` | 0 バイトと空行だけのファイルで「データがありません」を表示する（作業10 で追加） | FR-08、受け入れ基準 19 |
+| `test_four_columns_and_long_line_numbers_fit_at_1280px` | 幅 1280px で 4 列の表と「812〜813」の行番号が切れない（作業10 で見つけた不具合の回帰テスト） | NFR-10、設計書 I30 |
+| `test_important_badge_is_visible_in_narrow_change_column` | 変更の帯で、空白の説明があっても課題のバッジが隠れない（同上） | FR-43、設計書 I31 |
 
 あわせて、API のテスト（`tests/api/test_api.py`）で、画面の配信（`GET /`・`/static/`）、CSP の付与、画面の JavaScript が `.innerHTML` などを使っていないことを確かめる。
 
