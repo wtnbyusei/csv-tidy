@@ -65,3 +65,58 @@ def test_p6_quote_heavy_bytes(data):
         parse(decode(data).text)
     except TidyError:
         pass
+
+
+# --- 整形処理（P2〜P4） -----------------------------------------------------------
+
+from csv_tidy.core.models import RemoveReason, RowRemoved, TidyOptions  # noqa: E402
+from csv_tidy.core.pipeline import run_steps  # noqa: E402
+from csv_tidy.core.steps import TRIM_CHARS, trim_cell  # noqa: E402
+
+# 取り除く文字と、取り除かない紛らわしい文字を多めに混ぜる
+spacey = st.text(
+    alphabet=st.one_of(
+        st.sampled_from(list(TRIM_CHARS) + ["\u0085", " ", "​", "\r", "\n", "a", "山"]),
+        st.characters(blacklist_categories=("Cs",), blacklist_characters="\x00"),
+    ),
+    max_size=12,
+)
+
+
+@given(spacey)
+def test_p2_trim_is_idempotent(value):
+    """P2: トリムを 2 回かけても、1 回のときと同じ。"""
+    assert trim_cell(trim_cell(value)) == trim_cell(value)
+
+
+@given(spacey)
+def test_p3_trim_removes_only_target_characters_at_both_ends(value):
+    """P3: 前後に対象の空白が残らず、それ以外は 1 文字も変わらない。"""
+    trimmed = trim_cell(value)
+    assert not trimmed.startswith(tuple(TRIM_CHARS))
+    assert not trimmed.endswith(tuple(TRIM_CHARS))
+    assert trimmed in value  # 前後を削っただけなので、元の値の連続した一部になっている
+    head = value[: value.index(trimmed)] if trimmed else value
+    assert all(char in TRIM_CHARS for char in head)
+    tail = value[value.index(trimmed) + len(trimmed) :] if trimmed else ""
+    assert all(char in TRIM_CHARS for char in tail)
+
+
+small_cell = st.sampled_from(["", "a", "b", " a", "a ", "山田", "山田　"])
+data_rows = st.lists(st.lists(small_cell, min_size=1, max_size=3), min_size=1, max_size=15)
+
+
+@given(data_rows, st.booleans())
+def test_p4_no_duplicates_remain_and_order_is_kept(rows, trim):
+    """P4: 重複の削除の後は、列数と値が同じ行が 2 つ以上残らない。残った行は元の順番のまま。"""
+    text = write([["h1", "h2", "h3"], *rows], "\n")
+    ctx = run_steps(parse(text), TidyOptions(trim=trim, dedupe=True, remove_empty=False))
+    kept = [tuple(ctx.values[i]) for i in ctx.data_rows() if any(ctx.values[i])]
+    assert len(kept) == len(set(kept))
+    positions = ctx.data_rows()
+    assert positions == sorted(positions)
+    # 削除した行は、必ずそれより前に同じ値の行がある
+    for change in ctx.changes:
+        if isinstance(change, RowRemoved) and change.reason is RemoveReason.DUPLICATE:
+            assert change.duplicate_of < change.record
+            assert ctx.values[change.duplicate_of] == ctx.values[change.record]

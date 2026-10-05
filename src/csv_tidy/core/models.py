@@ -1,7 +1,6 @@
 """コアで使うデータの型（設計書 7.1）。
 
-この作業（コア: 読み込み）で使う型だけを置く。設定・変更記録・課題・結果の型は、
-それを使う作業で追加する。
+整形結果をまとめる型（TidyResult・Stats）は、書き出しを作る作業で追加する。
 """
 
 from dataclasses import dataclass
@@ -56,3 +55,100 @@ class Record:
     def is_multiline(self) -> bool:
         """複数行にまたがるセルを含むか（FR-07）。"""
         return self.line_end > self.line_start
+
+
+class OutputEncoding(Enum):
+    """出力の文字コード（FR-14）。値は API の設定で使う名前。"""
+
+    UTF8 = "utf-8"
+    UTF8_BOM = "utf-8-bom"
+    CP932 = "cp932"
+
+
+class Newline(Enum):
+    """出力の改行コード（FR-15）。"""
+
+    LF = "lf"
+    CRLF = "crlf"
+
+
+@dataclass(frozen=True)
+class TidyOptions:
+    """利用者が選ぶ設定（設計書 11.1）。初期値は要件定義書 4.3 のとおり。"""
+
+    input_encoding: InputEncoding | None = None  # None なら自動で判定する
+    trim: bool = True
+    remove_empty: bool = True
+    dedupe: bool = False  # 意図的な重複を消さないよう、初期状態はオフ（FR-22）
+    output_encoding: OutputEncoding = OutputEncoding.UTF8
+    newline: Newline = Newline.LF
+
+
+class RemoveReason(Enum):
+    """行を削除した理由。"""
+
+    LEADING_BLANK = "leading_blank"  # ヘッダーより前の空行（FR-04）
+    EMPTY = "empty"  # 空行（FR-21）
+    DUPLICATE = "duplicate"  # 重複行（FR-22）
+
+
+@dataclass(frozen=True)
+class Change:
+    """整形処理による変更の記録（FR-41）。`record` は Record.index。"""
+
+    record: int
+
+
+@dataclass(frozen=True)
+class CellTrimmed(Change):
+    """セルの前後の空白を取り除いた（FR-20）。"""
+
+    column: int
+    before: str
+    after: str
+
+
+@dataclass(frozen=True)
+class RowRemoved(Change):
+    """行を削除した。重複のときは `duplicate_of` に最初の行の Record.index を入れる。"""
+
+    reason: RemoveReason
+    duplicate_of: int | None = None
+
+
+class Level(Enum):
+    """課題の重さ。ERROR があると出力できない。"""
+
+    ERROR = "error"
+    WARNING = "warning"
+    INFO = "info"
+
+
+class IssueCode(Enum):
+    """課題の種類（設計書 11.2 の issues の code）。"""
+
+    COLUMN_COUNT = "column_count"  # 列数がヘッダーと違う（FR-30, 31）
+    CONTROL_CHAR = "control_char"  # 制御文字（FR-18）
+    INVISIBLE_CHAR = "invisible_char"  # 見えない文字（FR-18）
+    MULTILINE_CELL = "multiline_cell"  # 複数行にまたがるセル（FR-07）
+    FORMULA_LIKE = "formula_like"  # 整形で数式のような値になった（FR-48）
+    LEADING_BLANK = "leading_blank"  # 先頭の空行を飛ばした（FR-04）
+    NO_DATA_ROWS = "no_data_rows"  # ヘッダー行だけ（FR-08）
+    DUPLICATE = "duplicate"  # 重複がある（削除していない）（FR-22）
+
+
+@dataclass(frozen=True)
+class Issue:
+    """利用者に知らせる課題。
+
+    `record` と `column` は対象の場所（ファイル全体に関わるときは None）。
+    `related_record` は関係する別の行（重複の最初の行など）の Record.index。
+    """
+
+    level: Level
+    code: IssueCode
+    detail: str
+    record: int | None = None
+    column: int | None = None
+    related_record: int | None = None
+
