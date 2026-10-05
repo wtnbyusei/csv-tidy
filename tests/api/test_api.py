@@ -5,7 +5,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from csv_tidy.api.app import create_app
+from csv_tidy.api.app import WEB_DIR, create_app
 from csv_tidy.core.models import MAX_BYTES
 from helpers import make_csv
 
@@ -229,3 +229,43 @@ def test_each_request_is_independent():
     assert first["stats"]["duplicates_removed"] == 1
     assert second["stats"]["duplicates_removed"] == 0
     assert first == third
+
+
+# --- 画面の配信（設計書 11 章の GET /・GET /static/...） ----------------------------------
+
+
+def test_index_returns_page_with_content_security_policy():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert '<script type="module" src="/static/app.js">' in response.text
+    # 画面で読み込めるのは、このサーバーから配信したものだけ（NFR-07 の多重の守り）
+    policy = response.headers["content-security-policy"]
+    assert "script-src 'self'" in policy
+    assert "default-src 'self'" in policy
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["app.js", "api.js", "state.js", "views/dom.js", "views/summary.js", "views/issues.js", "views/diff.js"],
+)
+def test_static_scripts_are_served_as_javascript(path):
+    # ES モジュールは、Content-Type が JavaScript でないとブラウザが実行しない
+    response = client.get(f"/static/{path}")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/javascript")
+    assert response.headers["cache-control"] == "no-cache"
+
+
+def test_static_css_is_served():
+    response = client.get("/static/style.css")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/css")
+
+
+def test_web_files_do_not_use_inner_html():
+    # 値は textContent（テキストノード）で入れ、HTML として解釈させない（設計書 12 章、NFR-07）
+    for path in WEB_DIR.rglob("*.js"):
+        source = path.read_text(encoding="utf-8")
+        for word in (".innerHTML", ".outerHTML", ".insertAdjacentHTML", "document.write"):
+            assert word not in source, f"{path.name} で {word} を使っている"

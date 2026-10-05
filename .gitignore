@@ -21,3 +21,6 @@ tests/perf/data/
 .vscode/
 .idea/
 .DS_Store
+
+# E2E テストの記録（Playwright のトレース）
+test-results/
