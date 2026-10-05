@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>csv-tidy 画面の見本: エラーの表示中</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- 動かない見本。画面設計書 docs/screen-design.md の「エラーの表示中」に対応する。 -->
+<div class="app">
+  <header class="app-header"><h1>csv-tidy</h1><span>CSV を使いやすい形に整える</span></header>
+  <aside class="sidebar">
+  <section class="section">
+    <h2>ファイル</h2>
+    <div class="dropzone has-file">
+      <div class="file-name">顧客一覧.csv</div>
+      <div class="hint">12.4 KB ・ 1,000 行</div>
+      <div style="margin-top:6px"><span class="button">別のファイルを選ぶ</span></div>
+    </div>
+  </section>
+  <section class="section">
+    <h2>読み込み</h2>
+    <div class="field"><label>文字コード</label><div class="select">自動判定（CP932 と判定）</div></div>
+  </section>
+  <section class="section">
+    <h2>整形</h2>
+    <div class="check"><span class="box on"></span><span>セル前後の空白を取り除く<br><span class="hint">半角・全角スペース、タブ、NBSP</span></span></div>
+    <div class="check"><span class="box on"></span><span>空行を削除する</span></div>
+    <div class="check"><span class="box"></span><span>重複行を削除する</span></div>
+  </section>
+  <section class="section">
+    <h2>出力</h2>
+    <div class="field"><label>文字コード</label><div class="select">UTF-8（BOM 付き・Excel 向け）</div></div>
+    <div class="field"><label>改行コード</label><div class="radio"><span>LF</span><span class="on">CRLF（Windows）</span></div></div>
+  </section>
+  <section class="section">
+<span class="button block disabled">ダウンロード</span>
+  </section>
+  </aside>
+  <main class="main">
+    <div class="error-box">
+      <h2>CSV の書き方に誤りがあります</h2>
+      <div>3 行目から始まるセルの <code>"</code>（ダブルクォート）が閉じられていません。</div>
+      <div style="margin-top:8px">確認すること:</div>
+      <ul style="margin:4px 0">
+        <li>元のファイルの 3 行目付近で、<code>"</code> の数が対になっているか</li>
+        <li>文字コードの判定が正しいか（左の「読み込み」で文字コードを指定し直すと解決する場合があります）</li>
+      </ul>
+      <div class="code">エラーの種類: csv_syntax</div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

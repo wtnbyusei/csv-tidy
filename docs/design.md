@@ -5,6 +5,7 @@
 - 対象リリース: v0.1（MVP）
 - 前提: [requirements.md](requirements.md)（第6版）
 - 用語: 分からない用語は [glossary.md](glossary.md) を参照
+- 画面: [screen-design.md](screen-design.md)（画面の配置・要素・状態ごとの表示）
 
 図は Mermaid（文字で図を書く記法。GitHub 上ではそのまま図として表示される）で書く。
 Mermaid にはユースケース図とパッケージ図の専用の記法がないため、この2つとアクティビティ図はフローチャートの記法で代用する。
