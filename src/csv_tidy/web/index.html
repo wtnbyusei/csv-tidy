@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>csv-tidy</title>
+<link rel="stylesheet" href="/static/style.css">
+<script type="module" src="/static/app.js"></script>
+</head>
+<body>
+<!-- 画面の構成は docs/screen-design.md を参照。値はすべて textContent で入れる（NFR-07）。 -->
+<div class="app">
+  <header class="app-header"><h1>csv-tidy</h1><span>CSV を使いやすい形に整える</span></header>
+
+  <aside class="sidebar">
+    <section class="section">
+      <h2>ファイル</h2>
+      <div class="dropzone" id="dropzone" data-testid="dropzone">
+        <div id="file-empty">
+          <div>ここに CSV ファイルをドロップ</div>
+          <div class="hint">または</div>
+        </div>
+        <div id="file-info" hidden>
+          <div class="file-name" id="file-name"></div>
+          <div class="hint" id="file-meta"></div>
+        </div>
+        <div class="file-actions">
+          <button type="button" class="button" id="choose-file">ファイルを選ぶ</button>
+          <input type="file" id="file-input" accept=".csv,.txt,text/csv,text/plain" hidden>
+        </div>
+        <div class="hint" id="file-limit">10MB まで</div>
+      </div>
+    </section>
+
+    <section class="section needs-file">
+      <h2>読み込み</h2>
+      <div class="field">
+        <label for="input-encoding">文字コード</label>
+        <select id="input-encoding" class="select">
+          <option value="" data-label="自動判定">自動判定</option>
+          <option value="utf-8-sig">UTF-8（BOM 付き）</option>
+          <option value="utf-8">UTF-8</option>
+          <option value="cp932">CP932</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="section needs-file">
+      <h2>整形</h2>
+      <label class="check">
+        <input type="checkbox" id="opt-trim" checked>
+        <span>セル前後の空白を取り除く<br><span class="hint">半角・全角スペース、タブ、NBSP</span></span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="opt-remove-empty" checked>
+        <span>空行を削除する</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="opt-dedupe">
+        <span>重複行を削除する<span class="hint note" id="dedupe-note" hidden></span></span>
+      </label>
+    </section>
+
+    <section class="section needs-file">
+      <h2>出力</h2>
+      <div class="field">
+        <label for="output-encoding">文字コード</label>
+        <select id="output-encoding" class="select">
+          <option value="utf-8">UTF-8</option>
+          <option value="utf-8-bom">UTF-8（BOM 付き・Excel 向け）</option>
+          <option value="cp932">CP932</option>
+        </select>
+      </div>
+      <fieldset class="field radio">
+        <legend>改行コード</legend>
+        <label><input type="radio" name="newline" value="lf" checked> LF</label>
+        <label><input type="radio" name="newline" value="crlf"> CRLF（Windows）</label>
+      </fieldset>
+    </section>
+
+    <section class="section needs-file">
+      <button type="button" class="button primary block" id="download" disabled>ダウンロード</button>
+      <div class="hint center" id="download-name"></div>
+      <div class="export-reason" id="export-reason" role="alert"></div>
+    </section>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="empty" id="view-empty">
+      <div class="big">CSV ファイルを左の欄にドロップするか、「ファイルを選ぶ」を押してください</div>
+      <div>文字コードの変換、空白・空行・重複の整理ができます。変更した箇所は、変更前と並べて確認できます。</div>
+      <div class="hint">元のファイルは書き換えません。結果は「元の名前_tidy.csv」として保存します。</div>
+    </div>
+
+    <div class="loading" id="view-loading" role="status" hidden>処理中です…</div>
+
+    <div class="error-box" id="view-error" role="alert" hidden>
+      <h2 id="error-title"></h2>
+      <div id="error-message"></div>
+      <div class="error-checks-title">確認すること:</div>
+      <ul id="error-checks"></ul>
+      <div class="code" id="error-code"></div>
+    </div>
+
+    <div class="result" id="view-result" hidden>
+      <div class="summary" id="summary"></div>
+      <div>
+        <div class="tabs" role="tablist">
+          <button type="button" class="tab on" role="tab" id="tab-diff" aria-selected="true">差分</button>
+          <button type="button" class="tab" role="tab" id="tab-issues" aria-selected="false">課題</button>
+        </div>
+        <div class="panel" id="panel-diff" role="tabpanel"></div>
+        <div class="panel" id="panel-issues" role="tabpanel" hidden></div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
