@@ -1,20 +1,19 @@
-"""プロパティベーステスト（テスト計画書 6章）。
+"""プロパティベーステスト（テスト計画書 6章の P1〜P6）。
 
 ランダムな入力を大量に作り、どんな入力でも成り立つ性質を確かめる。
-この作業（コア: 読み込み）で確かめられる P1・P6 の一部を置く。残りは、
-トリム・重複の削除・書き出しを作る作業で追加する。
 """
 
 import csv
 import io
 
-from hypothesis import given, settings
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 from csv_tidy.core.decoding import decode
 from csv_tidy.core.errors import TidyError
-from csv_tidy.core.models import MAX_BYTES, InputEncoding
+from csv_tidy.core.models import MAX_BYTES, InputEncoding, Newline, OutputEncoding
 from csv_tidy.core.parsing import parse
+from csv_tidy.core.writing import write_csv
 
 # CI の仮想マシンは速さが一定でないため、1 件あたりの時間の上限は設けない
 settings.register_profile("csv-tidy", deadline=None)
@@ -39,12 +38,36 @@ def write(rows: list[list[str]], newline: str) -> str:
 
 
 @given(table, st.sampled_from(["\n", "\r\n"]))
-def test_p1_written_table_is_parsed_back(rows, newline):
-    """P1（一部）: 標準の書き方で書き出した表は、解析すると元の表に戻る。
-
-    書き出しを自前で作る作業（コア: 書き出し）で、書き出し側を自前の処理に置き換える。
-    """
+def test_p1_standard_csv_is_parsed_back(rows, newline):
+    """P1 の前提: 標準の csv モジュールで書いた表は、解析すると元の表に戻る。"""
     parsed = [list(record.cells) for record in parse(write(rows, newline))]
+    assert parsed == rows
+
+
+def _cp932_ok(value: str) -> bool:
+    try:
+        value.encode("cp932")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+# 出力の文字コードと、読み直すときの文字コードの組み合わせ。
+# 自動判定を使わずに指定するのは、値の先頭が U+FEFF のときに BOM と区別できないため。
+_ROUNDTRIP = {
+    OutputEncoding.UTF8: InputEncoding.UTF8,
+    OutputEncoding.UTF8_BOM: InputEncoding.UTF8_SIG,
+    OutputEncoding.CP932: InputEncoding.CP932,
+}
+
+
+@given(table, st.sampled_from(list(OutputEncoding)), st.sampled_from(list(Newline)))
+def test_p1_written_table_is_read_back(rows, encoding, newline):
+    """P1: どんな値の表でも、自前の書き出しで CSV にして読み直すと、元の表に戻る。"""
+    if encoding is OutputEncoding.CP932:
+        assume(all(_cp932_ok(value) for row in rows for value in row))
+    data = write_csv(rows, encoding, newline)
+    parsed = [list(record.cells) for record in parse(decode(data, _ROUNDTRIP[encoding]).text)]
     assert parsed == rows
 
 
@@ -120,3 +143,53 @@ def test_p4_no_duplicates_remain_and_order_is_kept(rows, trim):
         if isinstance(change, RowRemoved) and change.reason is RemoveReason.DUPLICATE:
             assert change.duplicate_of < change.record
             assert ctx.values[change.duplicate_of] == ctx.values[change.record]
+
+
+# --- 出力と画面の一致（P5）、異常終了しないこと（P6） -----------------------------
+
+from csv_tidy.core.service import TidyService  # noqa: E402
+from csv_tidy.core.writing import replay_changes  # noqa: E402
+
+service = TidyService()
+messy_cell = st.sampled_from(["", " ", "a", " a", "a　", "\u00a0b", "=x", " =x", "山田", "山田\u200b", "x,y", '"q"', "1\n2"])
+messy_table = st.lists(st.lists(messy_cell, min_size=0, max_size=4), min_size=1, max_size=12)
+options_strategy = st.builds(
+    TidyOptions,
+    trim=st.booleans(),
+    remove_empty=st.booleans(),
+    dedupe=st.booleans(),
+    output_encoding=st.sampled_from(list(OutputEncoding)),
+    newline=st.sampled_from(list(Newline)),
+)
+
+
+@given(messy_table, options_strategy)
+def test_p5_replayed_changes_match_export(rows, options):
+    """P5: 元の値に変更の記録を当てはめた表（画面）と、出力した CSV を読み直した表が一致する。"""
+    data = write(rows, "\n").encode("utf-8")
+    try:
+        result = service.tidy(data, options)
+        exported = service.export(data, options)
+    except TidyError:
+        return  # 空行だけなど、処理を中止する入力は対象外（P6 で扱う）
+    reread = [list(r.cells) for r in parse(decode(exported, _ROUNDTRIP[options.output_encoding]).text)]
+    assert replay_changes(result) == reread
+
+
+@given(st.binary(max_size=300), options_strategy, st.sampled_from([None, *InputEncoding]))
+def test_p6_service_never_fails_unexpectedly(data, options, input_encoding):
+    """P6: どんなバイト列でも、整形結果を返すか TidyError を出すかのどちらか。"""
+    options = TidyOptions(
+        input_encoding=input_encoding,
+        trim=options.trim,
+        remove_empty=options.remove_empty,
+        dedupe=options.dedupe,
+        output_encoding=options.output_encoding,
+        newline=options.newline,
+    )
+    try:
+        service.tidy(data, options)
+        service.export(data, options)
+    except TidyError:
+        pass
+

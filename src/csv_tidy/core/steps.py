@@ -16,6 +16,7 @@ from .models import (
     Issue,
     IssueCode,
     Level,
+    OutputEncoding,
     Record,
     RemoveReason,
     RowRemoved,
@@ -61,6 +62,12 @@ class TidyContext:
 
     def __post_init__(self) -> None:
         self.values = [list(record.cells) for record in self.records]
+
+    def output_rows(self) -> list[int]:
+        """出力する行（ヘッダーと、削除していないデータ行）の位置。"""
+        if self.header is None:
+            return []
+        return [self.header, *self.data_rows()]
 
     def data_rows(self) -> list[int]:
         """ヘッダーより後ろの、まだ削除していない行の位置。"""
@@ -266,3 +273,39 @@ class DataRowsStep:
             ctx.issues.append(
                 Issue(level=Level.INFO, code=IssueCode.NO_DATA_ROWS, detail="データ行がありません（ヘッダー行だけです）")
             )
+
+
+class EncodabilityStep:
+    """出力を CP932 にしたとき、CP932 で表せない文字を ERROR として知らせる（FR-16）。
+
+    勝手に置き換えない。ERROR があると出力できない（TidyResult.exportable）。
+    """
+
+    def apply(self, ctx: TidyContext) -> None:
+        if ctx.options.output_encoding is not OutputEncoding.CP932:
+            return
+        for position in ctx.output_rows():
+            row = ctx.values[position]
+            # 大きなファイルでも速く終わるよう、行全体を変換できる行は飛ばす
+            if _cp932_encodable("".join(row)):
+                continue
+            for column, value in enumerate(row):
+                for char in dict.fromkeys(c for c in value if not _cp932_encodable(c)):
+                    ctx.issues.append(
+                        Issue(
+                            level=Level.ERROR,
+                            code=IssueCode.UNENCODABLE,
+                            detail=f"「{char}」（U+{ord(char):04X}）は CP932 で表せません",
+                            record=position,
+                            column=column,
+                        )
+                    )
+
+
+def _cp932_encodable(text: str) -> bool:
+    try:
+        text.encode("cp932")
+    except UnicodeEncodeError:
+        return False
+    return True
+

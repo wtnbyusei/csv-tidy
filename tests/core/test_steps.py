@@ -297,6 +297,7 @@ def test_default_step_order():
         "DedupeStep",
         "FormulaStep",
         "DataRowsStep",
+        "EncodabilityStep",
     ]
 
 
@@ -306,3 +307,4 @@ def test_pipeline_runs_given_steps_in_order():
     assert ctx.values[1] == ["a​"]
     assert ctx.header is None  # HeaderStep は実行していない
     assert ctx.data_rows() == []
+    assert ctx.output_rows() == []
