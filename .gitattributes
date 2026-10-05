@@ -1,0 +1,3 @@
+# テスト用のファイルは、文字コードと改行コードをそのままの形で保つ（Git に改行を変換させない）
+tests/fixtures/*.csv -text
+tests/fixtures/*.xlsx binary

@@ -21,6 +21,9 @@ dev = [
     "hypothesis>=6",
     "httpx2>=2.13",
 ]
+e2e = [
+    "pytest-playwright>=0.7",
+]
 
 [build-system]
 requires = ["hatchling"]

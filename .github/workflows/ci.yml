@@ -34,3 +34,33 @@ jobs:
 
       - name: コアのカバレッジが 90% 以上か確かめる（テスト計画書 4章）
         run: uv run coverage report --include='src/csv_tidy/core/*' --fail-under=90
+
+  e2e:                         # 画面の E2E テスト（テスト計画書 3 章の e2e ジョブ）
+    runs-on: ubuntu-latest
+    name: e2e (Chromium)
+    steps:
+      - name: リポジトリの中身を取得する
+        uses: actions/checkout@v7
+
+      - name: uv と Python を用意する
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: ライブラリを入れる（E2E 用の Playwright を含める）
+        run: uv sync --locked --group e2e
+
+      - name: Chromium と、動かすのに必要な OS の部品を入れる
+        run: uv run playwright install --with-deps chromium
+
+      - name: E2E テストを実行する（失敗したテストだけ操作の記録を残す）
+        run: uv run pytest -m e2e --tracing retain-on-failure --output test-results
+
+      - name: 失敗したときに、操作の記録（トレース）を保存する
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
