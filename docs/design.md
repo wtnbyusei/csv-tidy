@@ -290,12 +290,15 @@ classDiagram
     }
 
     class Stats {
+        +int cells_trimmed
         +int empty_removed
         +int duplicates_found
         +int duplicates_removed
-        +int cells_trimmed
         +int column_warnings
+        +int control_chars
+        +int invisible_chars
         +int formula_warnings
+        +int unencodable_chars
     }
 
     class TidyResult {
@@ -659,7 +662,7 @@ stateDiagram-v2
   "issues": [
     { "level": "warning", "code": "column_count", "record": 5, "column": null, "detail": "列数 2（ヘッダーは 3）" }
   ],
-  "stats": { "empty_removed": 0, "duplicates_found": 1, "duplicates_removed": 1, "cells_trimmed": 1, "column_warnings": 1, "formula_warnings": 0 }
+  "stats": { "cells_trimmed": 1, "empty_removed": 0, "duplicates_found": 1, "duplicates_removed": 1, "column_warnings": 1, "control_chars": 0, "invisible_chars": 0, "formula_warnings": 0, "unencodable_chars": 0 }
 }
 ```
 
@@ -717,4 +720,8 @@ stateDiagram-v2
 | I9 | 6 | 空行は、列数の検査と重複の検出の対象にしない（空行の削除をオフにしたときに残る空行を含む） | 空行は空行の削除（FR-21）で扱う。対象にすると「列数 0（ヘッダーは 4）」や空行どうしの重複が大量に出て、本当の問題が埋もれるため |
 | I10 | 6 | 文字の検査（制御文字・見えない文字・複数行のセル）は、トリムの前の元の値に対して行う | トリムで消える位置にある文字も含めて、元のデータにある問題を知らせるため |
 | I11 | 6 | 文字の検査は、まず行全体を 1 回の正規表現で調べ、該当する行だけをセルごとに調べる。数式化の検査は、値が変わった行だけを調べる | 10.4MB（10万行×10列）の試験データで、整形処理が 1.89 秒から 0.55 秒になった（読み込みを含めて 3.32 秒から 1.76 秒）。NFR-01（5 秒以内）に余裕を持たせるため |
+| I12 | 7 | 出力ファイルは整形処理の作業用の値（`TidyContext.values`）から作り、画面に返す結果は元の値と変更の記録だけにする。元の値に変更の記録を当てはめる手順を `writing.replay_changes()` として用意し、出力と一致することをテスト P5 で確かめる | 設計判断 D2 の弱点（画面と出力の食い違い）を防ぐため。作り方が別々なので、一致すれば変更の記録に漏れがないことが分かる。画面の JavaScript はこの関数と同じ手順で組み立てる |
+| I13 | 7 | `Stats` に `control_chars`・`invisible_chars`・`unencodable_chars` を追加した。7.1 のクラス図と 11.2 の応答例も更新 | 画面設計書 4.1 の概要で、見えない文字や CP932 で表せない文字の件数も表示するため |
+| I14 | 7 | CP932 で表せない文字の件数は「1つのセルの中の同じ文字を 1 件」として数える。検査するのは出力する行（ヘッダーを含む）だけ | 削除した行は出力されないため。数え方は制御文字・見えない文字（I11 の前の作業6）とそろえた |
+| I15 | 7 | 10.4MB の試験データで、整形結果（`tidy`）は約 1.4 秒、出力（`export`）は約 1.6〜1.9 秒 | 表示とダウンロードは別のリクエストなので、NFR-01（表示まで 5 秒以内）の対象は `tidy` の時間 |
 

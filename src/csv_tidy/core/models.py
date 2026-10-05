@@ -1,7 +1,4 @@
-"""コアで使うデータの型（設計書 7.1）。
-
-整形結果をまとめる型（TidyResult・Stats）は、書き出しを作る作業で追加する。
-"""
+"""コアで使うデータの型（設計書 7.1）。"""
 
 from dataclasses import dataclass
 from enum import Enum
@@ -135,6 +132,7 @@ class IssueCode(Enum):
     LEADING_BLANK = "leading_blank"  # 先頭の空行を飛ばした（FR-04）
     NO_DATA_ROWS = "no_data_rows"  # ヘッダー行だけ（FR-08）
     DUPLICATE = "duplicate"  # 重複がある（削除していない）（FR-22）
+    UNENCODABLE = "unencodable"  # 出力の文字コードで表せない文字（FR-16）
 
 
 @dataclass(frozen=True)
@@ -151,4 +149,40 @@ class Issue:
     record: int | None = None
     column: int | None = None
     related_record: int | None = None
+
+
+@dataclass(frozen=True)
+class Stats:
+    """変更と課題の件数（FR-46）。画面上部の概要に表示する。"""
+
+    cells_trimmed: int = 0
+    empty_removed: int = 0
+    duplicates_found: int = 0  # 見つかった重複の数（削除したものを含む）
+    duplicates_removed: int = 0
+    column_warnings: int = 0
+    control_chars: int = 0
+    invisible_chars: int = 0
+    formula_warnings: int = 0
+    unencodable_chars: int = 0
+
+
+@dataclass(frozen=True)
+class TidyResult:
+    """整形結果（設計書 7.1）。
+
+    整形後の値は持たない。`records`（元の値）に `changes`（変更の記録）を当てはめて
+    求める（設計書 D2）。`header_record` はヘッダー行の Record.index。
+    """
+
+    input: DecodedInput
+    options: TidyOptions
+    records: list[Record]
+    header_record: int
+    changes: list[Change]
+    issues: list[Issue]
+    stats: Stats
+
+    def exportable(self) -> bool:
+        """レベルが ERROR の課題がなければ出力できる（FR-16）。"""
+        return not any(issue.level is Level.ERROR for issue in self.issues)
 

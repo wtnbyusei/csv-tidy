@@ -72,3 +72,17 @@ class CsvSyntaxError(TidyError):
         )
         self.line = line
         self.detail = detail
+
+
+class UnencodableError(TidyError):
+    """出力の文字コードで表せない文字があり、出力できない（FR-16）。"""
+
+    code = "unencodable"
+
+    def __init__(self, *, count: int) -> None:
+        super().__init__(
+            f"出力の文字コード（CP932）で表せない文字が {count} 件あります。"
+            "課題の一覧で場所を確認し、元のデータを直すか、出力の文字コードを UTF-8 にしてください。"
+        )
+        self.count = count
+

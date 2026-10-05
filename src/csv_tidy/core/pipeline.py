@@ -9,6 +9,7 @@ from .steps import (
     DataRowsStep,
     DedupeStep,
     EmptyRowStep,
+    EncodabilityStep,
     FormulaStep,
     HeaderStep,
     Step,
@@ -31,6 +32,7 @@ def default_steps() -> list[Step]:
         DedupeStep(),
         FormulaStep(),
         DataRowsStep(),
+        EncodabilityStep(),
     ]
 
 
