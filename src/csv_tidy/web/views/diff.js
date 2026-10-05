@@ -119,7 +119,8 @@ function sideTable(model, side) {
   }
   const table = el("table", {}, head);
   // 列が多いときは、表を横に広げてスクロールさせる
-  table.style.minWidth = `${72 + model.width * 96}px`;
+  // 1280px の画面で 4 列が収まる幅（画面設計書 1 章）。多い列は横スクロールにする
+  table.style.minWidth = `${88 + model.width * 72}px`;
   return table;
 }
 
@@ -271,8 +272,6 @@ function gutterRow(model, index, focus) {
     else if (removed.reason === "leading_blank") add("badge", "削除: 先頭の空行");
     else add("badge", `削除: 重複（${model.records[removed.duplicate_of].line_start} 行目と同じ）`);
   }
-  const trimmed = model.trimmed.get(index);
-  if (trimmed) add("note-text", `空白を取り除いた（${trimmed.size} セル）`);
 
   const seen = new Set();
   for (const issue of model.issuesByRecord.get(index) || []) {
@@ -308,6 +307,10 @@ function gutterRow(model, index, focus) {
         add("badge info", issue.detail);
     }
   }
+
+  // 帯の幅（180px）に収まらないときに大事なバッジが隠れないよう、空白の説明は最後に置く
+  const trimmed = model.trimmed.get(index);
+  if (trimmed) add("note-text", `空白を取り除いた（${trimmed.size} セル）`);
 
   const td = el("td", { title: notes.map((n) => n.text).join("／") });
   if (notes.length) td.append(el("span", { className: "arrow" }, "→"));
