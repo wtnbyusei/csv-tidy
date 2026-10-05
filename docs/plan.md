@@ -27,7 +27,7 @@
 | 2 | 画面設計 | Claude（質問しながら進める） | `docs/screen-design` | v0.1 の画面構成とワイヤーフレーム（配置だけを描いた画面の下書き）。v0.2 の列の操作の画面と操作の単位もあわせて検討する | 完了（#4） |
 | 3 | テスト計画 | Claude | `docs/test-plan` | 要件とテストの対応表、テストの種類と CI での実行、カバレッジの基準、テストデータ、手動確認の項目。[test-plan.md](test-plan.md) | 完了（#5） |
 | 4 | 実装の準備 | Claude | `chore/setup-uv` | uv でのプロジェクト作成、ディレクトリの作成、pytest・pytest-cov・Hypothesis の導入、テスト用の関数（`tests/helpers.py`）、依存の向きと待ち受け先のテスト。CI に `test` ジョブ（Python 3.11・3.13、コアのカバレッジ 90%）を追加する | 完了（#6） |
-| 5 | コア: 読み込み | Claude | `feat/core-decoding-parsing` | 文字コードの判定、CSV ではないファイルの検出、CSV 解析、ヘッダー行の決定（FR-03〜08, 10〜13, 17） | 進行中 |
+| 5 | コア: 読み込み | Claude | `feat/core-decoding-parsing` | 文字コードの判定、CSV ではないファイルの検出、CSV 解析、ヘッダー行の決定（FR-03〜08, 10〜13, 17） | 進行中（レビュー待ち） |
 | 6 | コア: 整形処理 | Claude | `feat/core-steps` | トリム、空行、列数、重複、文字の検査、数式化の警告（FR-18〜25, 30〜31, 48） | 未着手 |
 | 7 | コア: 書き出し | Claude | `feat/core-writing` | CSV の書き出し、CP932 の検査、コアの入口（FR-14〜16, 50） | 未着手 |
 | 8 | API | Claude | `feat/api` | FastAPI の窓口、エラー応答（NFR-02, 08） | 未着手 |
