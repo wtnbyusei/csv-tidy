@@ -279,6 +279,7 @@ classDiagram
         +IssueCode code
         +int|None record
         +int|None column
+        +int|None related_record
         +str detail
     }
     class Level {
@@ -366,6 +367,7 @@ classDiagram
     class ColumnCountStep
     class DedupeStep
     class FormulaStep
+    class DataRowsStep
     class EncodabilityStep
 
     Step <|.. CharScanStep
@@ -375,6 +377,7 @@ classDiagram
     Step <|.. ColumnCountStep
     Step <|.. DedupeStep
     Step <|.. FormulaStep
+    Step <|.. DataRowsStep
     Step <|.. EncodabilityStep
 
     TidyService --> Pipeline
@@ -709,4 +712,9 @@ stateDiagram-v2
 | I4 | 5 | ファイルサイズの上限 `MAX_BYTES` はコアの `models.py` に置き、API もこれを使う | 上限の値を1か所で管理するため |
 | I5 | 5 | 1つのセルの長さの上限は、`csv.field_size_limit()` を `MAX_BYTES` まで引き上げて対応した。この設定はプロセス全体に効く | csv モジュールに、解析1回ごとに上限を渡す方法がないため |
 | I6 | 5 | Python の CP932 は 0x80 や 0xFD〜0xFF を別の文字（U+0080 や私用領域の文字）として読み、エラーにしない。このため「どの文字コードでも読めない」のは、2バイト文字の途中で切れているときなどに限られる | 実際に確かめた動き。文字化けの手がかりとしては、文字の検査（FR-18）の C1 制御文字の警告で補う |
+| I7 | 6 | Step に `DataRowsStep`（ヘッダー行のほかにデータ行がなければ情報を出す）を追加した。7.2 のクラス図にも追加 | 「ヘッダーだけのファイル」の判定（FR-08）は、空行の削除の後でないとできないため、独立した段階にした |
+| I8 | 6 | `Issue` に `related_record`（関係する別の行）を追加した。7.1 のクラス図にも追加 | 重複の情報で「何行目と同じか」を、画面が文章からではなくデータとして扱えるようにするため |
+| I9 | 6 | 空行は、列数の検査と重複の検出の対象にしない（空行の削除をオフにしたときに残る空行を含む） | 空行は空行の削除（FR-21）で扱う。対象にすると「列数 0（ヘッダーは 4）」や空行どうしの重複が大量に出て、本当の問題が埋もれるため |
+| I10 | 6 | 文字の検査（制御文字・見えない文字・複数行のセル）は、トリムの前の元の値に対して行う | トリムで消える位置にある文字も含めて、元のデータにある問題を知らせるため |
+| I11 | 6 | 文字の検査は、まず行全体を 1 回の正規表現で調べ、該当する行だけをセルごとに調べる。数式化の検査は、値が変わった行だけを調べる | 10.4MB（10万行×10列）の試験データで、整形処理が 1.89 秒から 0.55 秒になった（読み込みを含めて 3.32 秒から 1.76 秒）。NFR-01（5 秒以内）に余裕を持たせるため |
 
