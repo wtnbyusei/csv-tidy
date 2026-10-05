@@ -1,0 +1,45 @@
+[project]
+name = "csv-tidy"
+version = "0.1.0.dev0"
+description = "CSV データを使いやすい形に整える Web アプリ"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "python-multipart>=0.0.9",
+]
+
+[project.scripts]
+csv-tidy = "csv_tidy.__main__:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "hypothesis>=6",
+    "httpx>=0.27",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/csv_tidy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+addopts = "-m 'not perf and not e2e'"
+markers = [
+    "perf: 性能測定（手元でだけ実行する。uv run pytest -m perf）",
+    "e2e: ブラウザを使う E2E テスト（uv run pytest -m e2e）",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["csv_tidy"]
+
+[tool.coverage.report]
+show_missing = true

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+build/
+
+# テストとカバレッジ
+.pytest_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# 性能測定用に生成するデータ
+tests/perf/data/
+
+# エディタ・OS
+.vscode/
+.idea/
+.DS_Store

@@ -224,4 +224,11 @@
 | 対応表（トレーサビリティ） | traceability | 要件とテストを1対1で結び付けた表。要件のテスト漏れを見つけるために使う |
 | マーカー | marker | pytest でテストに付ける目印。目印ごとに実行する・しないを選べる。例: `perf` |
 | フィクスチャ | fixture | テストで使うために用意しておくデータやファイル。このプロジェクトでは `tests/fixtures/` に置く CSV |
+| pyproject.toml | パイプロジェクト トムル | Python のプロジェクトの設定ファイル。名前・版・使うライブラリ・テストの設定などを書く |
+| .gitignore | ギット イグノア | Git で記録しないファイルを指定するファイル。テストの実行で作られる一時ファイルなどを書く |
+| マトリックス | matrix | GitHub Actions で、同じジョブを条件（Python の版など）を変えて何回か実行する仕組み |
+| キャッシュ | cache | 一度ダウンロードしたものを保存しておき、次回に再利用して速くする仕組み |
+| エントリーポイント | entry point | プログラムを起動する入口。このプロジェクトでは `uv run csv-tidy` で `csv_tidy/__main__.py` の `main` が動く |
+| httpx | エイチティーティーピーエックス | Python で HTTP の通信をするライブラリ。FastAPI の TestClient が内部で使う |
+| python-multipart | パイソン マルチパート | FastAPI がファイルのアップロード（multipart/form-data）を受け取るために使うライブラリ |
 

@@ -8,14 +8,29 @@ on:
     branches: [main]     # main に取り込まれたとき
 
 jobs:
-  check:                       # ジョブの名前
+  test:                        # ジョブの名前（テスト計画書 3章の test ジョブ）
     runs-on: ubuntu-latest     # GitHub が用意する Linux の仮想マシンで実行する
+    strategy:
+      fail-fast: false         # 1つの版で失敗しても、もう1つの版の結果も最後まで見る
+      matrix:
+        # 同じジョブを Python の版を変えて2回実行する（NFR-06）
+        python-version: ["3.11", "3.13"]
+    name: test (Python ${{ matrix.python-version }})
     steps:
       - name: リポジトリの中身を取得する
-        uses: actions/checkout@v4   # 公開されている部品（アクション）を使う
+        uses: actions/checkout@v7   # 公開されている部品（アクション）を使う
 
-      - name: あいさつ
-        run: echo "Hello CI"
+      - name: uv と Python を用意する
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true        # ダウンロードしたライブラリを次回のために保存する
 
-      - name: docs フォルダの中身を表示する
-        run: ls -la docs
+      - name: ライブラリを入れる（uv.lock の版のとおりに）
+        run: uv sync --locked
+
+      - name: テストを実行し、カバレッジを測る
+        run: uv run pytest --cov --cov-report=term
+
+      - name: コアのカバレッジが 90% 以上か確かめる（テスト計画書 4章）
+        run: uv run coverage report --include='src/csv_tidy/core/*' --fail-under=90
