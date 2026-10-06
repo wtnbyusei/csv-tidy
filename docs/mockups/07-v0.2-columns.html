@@ -78,7 +78,7 @@
           <table>
             <tr><th class="ln">行</th><th>ID</th><th>名前</th><th>年齢</th><th>住所</th><th>電話</th><th>（6 列目）</th></tr>
             <tr><td class="ln">1</td><td>ID</td><td>名前</td><td>年齢</td><td>住所</td><td>電話</td><td class="missing">セルなし</td></tr>
-            <tr><td class="ln">2</td><td>C001</td><td>山田太郎</td><td>30</td><td>東京都</td><td>03-1111</td><td>VIP</td></tr>
+            <tr class="dup-origin"><td class="ln">2</td><td>C001</td><td>山田太郎</td><td>30</td><td>東京都</td><td>03-1111</td><td>VIP</td></tr>
             <tr><td class="ln">3</td><td>C002</td><td class="trimmed"><span class="ws"></span>佐藤花子</td><td>25</td><td>大阪府</td><td>06-3333</td><td></td></tr>
             <tr class="removed"><td class="ln">4</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
             <tr><td class="ln">6</td><td>C004</td><td>田中次郎</td><td>2<span class="mark">ZWSP</span>8</td><td>福岡県</td><td>092-555</td><td></td></tr>
@@ -91,11 +91,11 @@
           <table>
             <tr><th>この行で起きたこと</th></tr>
             <tr><td><span class="arrow">→</span><span class="note-text">ヘッダー・列名を整えた（1 列）</span></td></tr>
-            <tr><td><span class="arrow">→</span><span class="badge warn">列数 6 / 5</span></td></tr>
+            <tr><td><span class="arrow">→</span><span class="badge origin">重複の元（7 行目）</span><span class="more">他 1</span></td></tr>
             <tr><td><span class="arrow">→</span><span class="note-text">空白を取り除いた（1 セル）</span></td></tr>
             <tr><td><span class="arrow">→</span><span class="badge">削除: 空行</span></td></tr>
             <tr><td><span class="arrow">→</span><span class="badge warn">見えない文字</span><span class="off-col">出力しない列</span></td></tr>
-            <tr><td><span class="arrow">→</span><span class="badge warn">列数 6 / 5</span><span class="badge dup">重複: 2 行目と同じ</span></td></tr>
+            <tr><td><span class="arrow">→</span><span class="badge dup">重複: 2 行目と同じ</span><span class="more">他 1</span></td></tr>
             <tr class="gap"><td></td></tr>
           </table>
         </div>
@@ -104,7 +104,7 @@
           <table>
             <tr><th class="ln">行</th><th>ID</th><th>氏名 <span class="orig">← 名前</span></th><th>電話</th><th>住所</th><th class="fixed-name">列6 <span class="orig">← 空</span></th></tr>
             <tr><td class="ln">1</td><td>ID</td><td>氏名</td><td>電話</td><td>住所</td><td>列6</td></tr>
-            <tr><td class="ln">2</td><td>C001</td><td>山田太郎</td><td>03-1111</td><td>東京都</td><td>VIP</td></tr>
+            <tr class="dup-origin"><td class="ln">2</td><td>C001</td><td>山田太郎</td><td>03-1111</td><td>東京都</td><td>VIP</td></tr>
             <tr><td class="ln">3</td><td>C002</td><td class="trimmed">佐藤花子</td><td>06-3333</td><td>大阪府</td><td></td></tr>
             <tr class="placeholder"><td class="ln"></td><td colspan="5">（出力しない）</td></tr>
             <tr><td class="ln">5</td><td>C004</td><td>田中次郎</td><td>092-555</td><td>福岡県</td><td></td></tr>

@@ -158,3 +158,12 @@ td.missing { background: var(--missing); color: #8c959f; font-size: 11px; }
 th.fixed-name { background: #dafbe1; box-shadow: inset 0 -2px #1a7f37; }
 .orig { font-weight: normal; color: var(--muted); font-size: 11px; }
 .off-col { color: var(--muted); font-size: 11px; margin-left: 4px; }
+
+/* 重複の示し方（画面設計書 4.3。作業15 で追加）: 重複の行は 1 色、組は文字で示し、押すと同じ組を強調する */
+tr.dup td { background: #eef5ff; }
+tr.dup td.ln { box-shadow: inset 3px 0 #0969da; }
+tr.dup-origin td.ln { box-shadow: inset 3px 0 #9ec5f4; }
+.badge.origin { background: #fff; color: #0969da; border: 1px solid #0969da; }
+.more { display: inline-block; font-size: 10px; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 0 5px; margin-left: 2px; }
+tr.grp td { background: #cfe3ff; }
+tr.grp td.ln { box-shadow: inset 5px 0 #0969da; color: #0b3d91; font-weight: bold; }

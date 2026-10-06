@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>csv-tidy 画面の見本: 重複の組の示し方</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- 動かない見本。画面設計書 docs/screen-design.md の 4.3「重複の示し方」に対応する（作業15 で追加）。 -->
+<main class="main">
+  <div class="panel" style="border-top:1px solid var(--line);border-radius:6px">
+    <h2 style="font-size:14px;margin:0 0 6px">（1）初期状態: どの組も同じ見た目</h2>
+    <div class="hint" style="margin-bottom:6px">例: 2 組の重複（2 行目と 7・12 行目、3 行目と 9 行目）。重複の行は薄い青、重複の元の行は薄い青の線。どの行と同じかは変更の帯の文字で示す</div>
+    <div class="diff3">
+  <div><h3>変更前</h3><table><tr><th class="ln">行</th><th>ID</th><th>氏名</th><th>電話</th></tr><tr class="dup-origin"><td class="ln">2</td><td>C001</td><td>山田太郎</td><td>03-1111</td></tr><tr class="dup-origin"><td class="ln">3</td><td>C002</td><td>佐藤花子</td><td>06-3333</td></tr><tr class="gap"><td colspan="4">… 変更のない 3 行を省略 …</td></tr><tr class="dup"><td class="ln">7</td><td>C005</td><td>山田太郎</td><td>03-1111</td></tr><tr class=""><td class="ln">8</td><td>C006</td><td>鈴木一郎</td><td>052-2222</td></tr><tr class="dup"><td class="ln">9</td><td>C007</td><td>佐藤花子</td><td>06-3333</td></tr><tr class="gap"><td colspan="4">… 変更のない 2 行を省略 …</td></tr><tr class="dup"><td class="ln">12</td><td>C010</td><td>山田太郎</td><td>03-1111</td></tr></table></div>
+  <div class="gutter"><h3>変更</h3><table><tr><th>この行で起きたこと</th></tr><tr class=""><td><span class="arrow">→</span><span class="badge origin">重複の元（7・12 行目）</span></td></tr><tr class=""><td><span class="arrow">→</span><span class="badge origin">重複の元（9 行目）</span></td></tr><tr class="gap"><td></td></tr><tr class=""><td><span class="arrow">→</span><span class="badge dup">重複: 2 行目と同じ</span></td></tr><tr class=""><td></td></tr><tr class=""><td><span class="arrow">→</span><span class="badge dup">重複: 3 行目と同じ</span></td></tr><tr class="gap"><td></td></tr><tr class=""><td><span class="arrow">→</span><span class="badge dup">重複: 2 行目と同じ</span></td></tr></table></div>
+  <div><h3>変更後</h3><table><tr><th class="ln">行</th><th>ID</th><th>氏名</th><th>電話</th></tr><tr class="dup-origin"><td class="ln">2</td><td>C001</td><td>山田太郎</td><td>03-1111</td></tr><tr class="dup-origin"><td class="ln">3</td><td>C002</td><td>佐藤花子</td><td>06-3333</td></tr><tr class="gap"><td colspan="4">… 変更のない 3 行を省略 …</td></tr><tr class="dup"><td class="ln">7</td><td>C005</td><td>山田太郎</td><td>03-1111</td></tr><tr class=""><td class="ln">8</td><td>C006</td><td>鈴木一郎</td><td>052-2222</td></tr><tr class="dup"><td class="ln">9</td><td>C007</td><td>佐藤花子</td><td>06-3333</td></tr><tr class="gap"><td colspan="4">… 変更のない 2 行を省略 …</td></tr><tr class="dup"><td class="ln">12</td><td>C010</td><td>山田太郎</td><td>03-1111</td></tr></table></div>
+</div>
+  </div>
+  <div class="panel" style="border-top:1px solid var(--line);border-radius:6px">
+    <h2 style="font-size:14px;margin:0 0 6px">（2）12 行目を押したとき: 同じ組（2・7・12 行目）を強調する</h2>
+    <div class="hint" style="margin-bottom:6px">組のどの行（2・7・12 行目のどれ）を押しても同じ。もう一度押すか、重複ではない行や表の外を押すと消える。同じ組の行が今の画面にないときは、表の上に「同じ組の行: 2・7・12 行目」と出し、行番号を押すと移動できる</div>
+    <div class="toolbar"><span class="hint">同じ組の行: <a href="#">2</a>・<a href="#">7</a>・<a href="#">12</a> 行目</span></div>
+    <div class="diff3">
+  <div><h3>変更前</h3><table><tr><th class="ln">行</th><th>ID</th><th>氏名</th><th>電話</th></tr><tr class="dup-origin grp"><td class="ln">2</td><td>C001</td><td>山田太郎</td><td>03-1111</td></tr><tr class="dup-origin"><td class="ln">3</td><td>C002</td><td>佐藤花子</td><td>06-3333</td></tr><tr class="gap"><td colspan="4">… 変更のない 3 行を省略 …</td></tr><tr class="dup grp"><td class="ln">7</td><td>C005</td><td>山田太郎</td><td>03-1111</td></tr><tr class=""><td class="ln">8</td><td>C006</td><td>鈴木一郎</td><td>052-2222</td></tr><tr class="dup"><td class="ln">9</td><td>C007</td><td>佐藤花子</td><td>06-3333</td></tr><tr class="gap"><td colspan="4">… 変更のない 2 行を省略 …</td></tr><tr class="dup grp"><td class="ln">12</td><td>C010</td><td>山田太郎</td><td>03-1111</td></tr></table></div>
+  <div class="gutter"><h3>変更</h3><table><tr><th>この行で起きたこと</th></tr><tr class="grp"><td><span class="arrow">→</span><span class="badge origin">重複の元（7・12 行目）</span></td></tr><tr class=""><td><span class="arrow">→</span><span class="badge origin">重複の元（9 行目）</span></td></tr><tr class="gap"><td></td></tr><tr class="grp"><td><span class="arrow">→</span><span class="badge dup">重複: 2 行目と同じ</span></td></tr><tr class=""><td></td></tr><tr class=""><td><span class="arrow">→</span><span class="badge dup">重複: 3 行目と同じ</span></td></tr><tr class="gap"><td></td></tr><tr class="grp"><td><span class="arrow">→</span><span class="badge dup">重複: 2 行目と同じ</span></td></tr></table></div>
+  <div><h3>変更後</h3><table><tr><th class="ln">行</th><th>ID</th><th>氏名</th><th>電話</th></tr><tr class="dup-origin grp"><td class="ln">2</td><td>C001</td><td>山田太郎</td><td>03-1111</td></tr><tr class="dup-origin"><td class="ln">3</td><td>C002</td><td>佐藤花子</td><td>06-3333</td></tr><tr class="gap"><td colspan="4">… 変更のない 3 行を省略 …</td></tr><tr class="dup grp"><td class="ln">7</td><td>C005</td><td>山田太郎</td><td>03-1111</td></tr><tr class=""><td class="ln">8</td><td>C006</td><td>鈴木一郎</td><td>052-2222</td></tr><tr class="dup"><td class="ln">9</td><td>C007</td><td>佐藤花子</td><td>06-3333</td></tr><tr class="gap"><td colspan="4">… 変更のない 2 行を省略 …</td></tr><tr class="dup grp"><td class="ln">12</td><td>C010</td><td>山田太郎</td><td>03-1111</td></tr></table></div>
+</div>
+  </div>
+</main>
+</body>
+</html>
