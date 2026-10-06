@@ -11,6 +11,8 @@
   --removed-line: #d1242f;
   --trimmed: #fff4c2;
   --trimmed-line: #b08800;
+  --escaped: #dafbe1;
+  --escaped-line: #1a7f37;
   --warn-line: #bf8700;
   --dup-line: #0969da;
   --info: #e7f3ff;
@@ -72,6 +74,7 @@ fieldset.radio legend { width: 100%; padding: 0; }
 .count { padding: 1px 8px; border-radius: 10px; background: #eef1f4; }
 .count.removed { background: var(--removed); }
 .count.trimmed { background: var(--trimmed); }
+.count.escaped { background: var(--escaped); }
 .count.warn { background: var(--warn); }
 .count.info { background: var(--info); }
 .count.error { background: var(--error); }
@@ -86,6 +89,7 @@ fieldset.radio legend { width: 100%; padding: 0; }
 .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-left: auto; color: var(--muted); font-size: 11px; }
 .swatch { display: inline-block; width: 10px; height: 10px; border: 1px solid var(--line); margin-right: 3px; vertical-align: -1px; }
 .swatch.trimmed { background: var(--trimmed); }
+.swatch.escaped { background: var(--escaped); }
 .swatch.removed { background: var(--removed); }
 .swatch.missing { background: var(--missing); }
 
@@ -116,6 +120,7 @@ tr.focus td:last-child { box-shadow: inset -2px 0 var(--accent), inset 0 2px var
 .gutter tr.focus td { box-shadow: inset 2px 0 var(--accent), inset -2px 0 var(--accent), inset 0 2px var(--accent), inset 0 -2px var(--accent); }
 tr.dup td.ln { box-shadow: inset 3px 0 var(--dup-line); }
 td.trimmed { background: var(--trimmed); box-shadow: inset 0 -2px var(--trimmed-line); }
+td.escaped { background: var(--escaped); box-shadow: inset 0 -2px var(--escaped-line); }
 td.missing { background: var(--missing); color: #8c959f; font-size: 11px; }
 td.formula { outline: 2px solid var(--warn-line); outline-offset: -3px; }
 td.unencodable { outline: 2px solid var(--removed-line); outline-offset: -3px; }

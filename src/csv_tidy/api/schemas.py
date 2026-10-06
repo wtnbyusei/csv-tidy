@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict
 from csv_tidy.core.models import (
     CellTrimmed,
     Change,
+    FormulaEscaped,
     InputEncoding,
     Issue,
     Newline,
@@ -30,6 +31,7 @@ class OptionsIn(BaseModel):
     trim: bool = True
     remove_empty: bool = True
     dedupe: bool = False
+    escape_formulas: bool = True
     output_encoding: OutputEncoding = OutputEncoding.UTF8
     newline: Newline = Newline.LF
 
@@ -39,6 +41,7 @@ class OptionsIn(BaseModel):
             trim=self.trim,
             remove_empty=self.remove_empty,
             dedupe=self.dedupe,
+            escape_formulas=self.escape_formulas,
             output_encoding=self.output_encoding,
             newline=self.newline,
         )
@@ -72,6 +75,8 @@ def result_to_json(result: TidyResult, size: int) -> dict[str, Any]:
 def _change_to_json(change: Change) -> dict[str, Any]:
     if isinstance(change, CellTrimmed):
         return {"type": "cell_trimmed", "record": change.record, "column": change.column, "after": change.after}
+    if isinstance(change, FormulaEscaped):
+        return {"type": "formula_escaped", "record": change.record, "column": change.column, "after": change.after}
     if isinstance(change, RowRemoved):
         return {
             "type": "row_removed",

@@ -77,6 +77,7 @@ class TidyOptions:
     trim: bool = True
     remove_empty: bool = True
     dedupe: bool = False  # 意図的な重複を消さないよう、初期状態はオフ（FR-22）
+    escape_formulas: bool = True  # 安全のため、初期状態はオン（FR-49、要件定義書 1.1）
     output_encoding: OutputEncoding = OutputEncoding.UTF8
     newline: Newline = Newline.LF
 
@@ -99,6 +100,15 @@ class Change:
 @dataclass(frozen=True)
 class CellTrimmed(Change):
     """セルの前後の空白を取り除いた（FR-20）。"""
+
+    column: int
+    before: str
+    after: str
+
+
+@dataclass(frozen=True)
+class FormulaEscaped(Change):
+    """表計算ソフトで数式として扱われないよう、値の先頭に `'` を付けた（FR-49）。"""
 
     column: int
     before: str
@@ -164,6 +174,7 @@ class Stats:
     invisible_chars: int = 0
     formula_warnings: int = 0
     unencodable_chars: int = 0
+    formulas_escaped: int = 0
 
 
 @dataclass(frozen=True)

@@ -1,9 +1,9 @@
-"""整形処理のテスト（FR-04, 07, 08, 18, 20〜24, 30, 31, 48、受け入れ基準 2〜5・8・13〜15・17・19・20・22）。"""
+"""整形処理のテスト（FR-04, 07, 08, 18, 20〜24, 30, 31, 48, 49、受け入れ基準 2〜5・8・13〜15・17・19・20・22・24）。"""
 
 import pytest
 
 from csv_tidy.core.errors import EmptyDataError
-from csv_tidy.core.models import CellTrimmed, IssueCode, Level, RemoveReason, RowRemoved, TidyOptions
+from csv_tidy.core.models import CellTrimmed, FormulaEscaped, IssueCode, Level, RemoveReason, RowRemoved, TidyOptions
 from csv_tidy.core.parsing import parse
 from csv_tidy.core.pipeline import Pipeline, default_steps, run_steps
 from csv_tidy.core.steps import (
@@ -11,6 +11,7 @@ from csv_tidy.core.steps import (
     TidyContext,
     TrimStep,
     describe_char,
+    needs_escape,
     trim_cell,
 )
 
@@ -263,11 +264,24 @@ def test_multiline_cell_is_reported_as_info():
 
 
 def test_cell_that_becomes_formula_like_after_trim_is_warned():
-    """受け入れ基準 13: `␣=1+1` はトリム後に警告される。値は `=1+1` のまま。"""
-    ctx = tidy("h1,h2\n =1+1,x\n")
+    """受け入れ基準 13: `␣=1+1` はトリム後に警告される。無害化をオフにすると値は `=1+1` のまま。"""
+    ctx = tidy("h1,h2\n =1+1,x\n", escape_formulas=False)
     [warning] = issues_of(ctx, IssueCode.FORMULA_LIKE)
     assert (warning.level, warning.record, warning.column) == (Level.WARNING, 1, 0)
     assert output_rows(ctx)[1] == ["=1+1", "x"]
+
+
+def test_formula_warning_is_kept_when_value_is_escaped():
+    """無害化がオンでも、整形で数式のような値になったことは警告する（FR-48 と FR-49）。"""
+    ctx = tidy("h1,h2\n =1+1,x\n")
+    assert len(issues_of(ctx, IssueCode.FORMULA_LIKE)) == 1
+    assert output_rows(ctx)[1] == ["'=1+1", "x"]
+
+
+def test_full_width_formula_prefix_after_trim_is_warned():
+    """全角の `＝` で始まるようになったセルも警告する（FR-48）。"""
+    ctx = tidy("h\n　＝1+1\n", escape_formulas=False)
+    assert len(issues_of(ctx, IssueCode.FORMULA_LIKE)) == 1
 
 
 @pytest.mark.parametrize("value", ["=1+1", "-5", "+81", "@sum"])
@@ -298,6 +312,7 @@ def test_default_step_order():
         "DedupeStep",
         "FormulaStep",
         "DataRowsStep",
+        "FormulaEscapeStep",
         "EncodabilityStep",
     ]
 
@@ -309,3 +324,54 @@ def test_pipeline_runs_given_steps_in_order():
     assert ctx.header is None  # HeaderStep は実行していない
     assert ctx.data_rows() == []
     assert ctx.output_rows() == []
+
+
+# --- 数式の無害化（FR-49、受け入れ基準 24） ------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["=1+1", "@SUM(A1)", "+81-90-1234-5678", "- メモ", "-1+2", "＝1+1", "＋1", "－５", "＠a", "\tx", "\r1", "\n=1"],
+)
+def test_values_that_can_become_formulas_need_escape(value):
+    assert needs_escape(value)
+
+
+@pytest.mark.parametrize(
+    "value", ["-5", "+81", "-1.5", "-1e3", "+0.5E+3", "-.5", "1-2", "a=b", "５", "'=1+1", "", "メモ -"]
+)
+def test_numbers_and_other_values_do_not_need_escape(value):
+    """受け入れ基準 24: 数値として読める値と、先頭が対象の文字でない値は変えない。"""
+    assert not needs_escape(value)
+
+
+def test_escape_adds_quote_and_records_change():
+    """受け入れ基準 24: 先頭に `'` を付け、変更として記録する。ヘッダーも対象。"""
+    ctx = tidy("=名前,値\n=1+1,-5\n＝1+1,+81\n")
+    assert output_rows(ctx) == [["'=名前", "値"], ["'=1+1", "-5"], ["'＝1+1", "+81"]]
+    escaped = [c for c in ctx.changes if isinstance(c, FormulaEscaped)]
+    assert [(c.record, c.column, c.before, c.after) for c in escaped] == [
+        (0, 0, "=名前", "'=名前"),
+        (1, 0, "=1+1", "'=1+1"),
+        (2, 0, "＝1+1", "'＝1+1"),
+    ]
+
+
+def test_escape_off_keeps_values():
+    """受け入れ基準 24: 無害化をオフにすると、どのセルも変わらない。"""
+    ctx = tidy("h\n=1+1\n@a\n", escape_formulas=False)
+    assert output_rows(ctx) == [["h"], ["=1+1"], ["@a"]]
+    assert not [c for c in ctx.changes if isinstance(c, FormulaEscaped)]
+
+
+def test_removed_rows_are_not_escaped():
+    """出力しない行（削除した重複）は無害化しない。"""
+    ctx = tidy("h\n=1\n=1\n", dedupe=True)
+    escaped = [c.record for c in ctx.changes if isinstance(c, FormulaEscaped)]
+    assert escaped == [1]
+
+
+def test_tab_prefix_is_escaped_when_trim_is_off():
+    """トリムをオフにして先頭のタブが残るときも無害化する。"""
+    ctx = tidy("h\n\t=1\n", trim=False)
+    assert output_rows(ctx)[1] == ["'\t=1"]
