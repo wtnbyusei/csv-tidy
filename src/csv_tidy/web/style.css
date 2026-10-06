@@ -104,7 +104,7 @@ fieldset.radio legend { width: 100%; padding: 0; }
 table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 th, td { border: 1px solid var(--line); padding: 2px 6px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 th { background: #f6f8fa; font-weight: bold; }
-td.ln, th.ln { width: 72px; color: var(--muted); text-align: right; background: #f6f8fa; font-weight: normal; }
+td.ln, th.ln { width: 88px; color: var(--muted); text-align: right; background: #f6f8fa; font-weight: normal; }
 tr.removed td { background: var(--removed); }
 tr.removed td.ln { box-shadow: inset 3px 0 var(--removed-line); }
 tr.placeholder td { background: #fafbfc; color: #8c959f; text-align: center; }

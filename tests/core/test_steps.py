@@ -81,6 +81,7 @@ def test_leading_blank_rows_are_skipped_and_reported():
     ctx = tidy("\n,,\n名前,年齢\n山田,30\n")
     assert ctx.header == 2
     assert removed_of(ctx, RemoveReason.LEADING_BLANK) == [0, 1]
+    assert output_rows(ctx) == [["名前", "年齢"], ["山田", "30"]]  # 先頭の空行は出力しない
     [info] = issues_of(ctx, IssueCode.LEADING_BLANK)
     assert info.level is Level.INFO
     assert "2 行" in info.detail

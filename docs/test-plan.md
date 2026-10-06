@@ -99,6 +99,7 @@ E2E と手動確認で、実際にファイルを選ぶ操作に使う。
 | `xss.csv` | `<script>alert(1)</script>` と `<img src=x onerror=alert(1)>` を値に含むもの | E2E（NFR-07） |
 | `emoji.csv` | 絵文字と `—`（U+2014）を含むもの。CP932 で出力できない | E2E（ダウンロードできない状態） |
 | `not_csv.xlsx` | 小さな Excel ファイル | E2E・手動確認（xlsx の案内） |
+| `manual_check.csv` | 差分の色・記号・帯がひととおり出るように、前後の空白（半角・全角・タブ・NBSP）、除去しない文字（U+0085・U+2028）、空白を取ると数式になる値、ゼロ幅スペースだけが違う 2 行、DEL、空行、列数の不足、複数行のセル、重複を 1 行ずつ並べたもの。1 列目にその行で確かめることを書いてある。UTF-8（BOM 付き）・CRLF | 手動確認 M4、E2E（受け入れ基準 13・14）。作業10 で追加 |
 
 これらのファイルは `tests/fixtures/make_fixtures.py` で作る（`uv run python tests/fixtures/make_fixtures.py`）。中身を変えるときは、このスクリプトを直して作り直す。1000 行中 999 行目だけを変える受け入れ基準 9 のデータなどは、E2E テストのコードの中で作る。
 
@@ -119,7 +120,7 @@ E2E と手動確認で、実際にファイルを選ぶ操作に使う。
 
 ## 7. 手動確認の項目
 
-リリース前に、開発者が確認する。結果はリリースのプルリクエストに記録する。
+リリース前に確認する。手順・合格の条件・結果は [acceptance.md](acceptance.md) に記録する（作業10 で、プルリクエストに記録する予定から変更した。結果を後から探しやすくするため）。
 
 | # | 確認すること | 関連 |
 | --- | --- | --- |
@@ -142,7 +143,7 @@ E2E と手動確認で、実際にファイルを選ぶ操作に使う。
 | 測る区間 | ファイルを選んでから、差分が画面に表示されるまで（Playwright で時間を測る）。あわせて、サーバー側の処理時間（`tidy` の呼び出し）も pytest で測り、どこに時間がかかっているかを分ける |
 | 基準 | 5 秒以内 |
 | 環境 | 開発に使う PC。測定結果（時間、PC の CPU とメモリ、ブラウザの版）を記録する |
-| 実行 | `uv run pytest -m perf`。通常のテストの実行では飛ばす |
+| 実行 | `uv run pytest -m perf -s`。通常のテストの実行では飛ばす。テストは `tests/perf/`、結果は [acceptance.md](acceptance.md) の 3 章に記録する |
 
 ## 9. 要件とテストの対応表
 
@@ -245,6 +246,11 @@ E2E と手動確認で、実際にファイルを選ぶ操作に使う。
 | `test_html_in_values_is_shown_as_text` | `<script>` などを含む値が実行されず、文字として表示される | NFR-07、受け入れ基準 12 |
 | `test_errors_are_explained` | クォートの誤りと xlsx で、見出し・説明を表示する | FR-05, 17、画面設計書 6 章 |
 | `test_last_option_change_wins` | 設定を続けて変えると、最後の設定の結果だけを表示する | 画面設計書 5 章 |
+| `test_formula_like_and_invisible_characters_are_marked_in_diff` | 空白を取ると数式になるセルを強調し、ゼロ幅スペース・DEL・C1 制御文字を記号で見せる。見た目が同じ行を重複にしない（作業10 で追加） | FR-18, 48、受け入れ基準 13・14 |
+| `test_leading_blank_rows_are_reported_and_not_exported` | 先頭の空行を飛ばしたことを表示し、出力に含めない（作業10 で追加） | FR-04、受け入れ基準 20 |
+| `test_empty_files_are_rejected` | 0 バイトと空行だけのファイルで「データがありません」を表示する（作業10 で追加） | FR-08、受け入れ基準 19 |
+| `test_four_columns_and_long_line_numbers_fit_at_1280px` | 幅 1280px で 4 列の表と「812〜813」の行番号が切れない（作業10 で見つけた不具合の回帰テスト） | NFR-10、設計書 I30 |
+| `test_important_badge_is_visible_in_narrow_change_column` | 変更の帯で、空白の説明があっても課題のバッジが隠れない（同上） | FR-43、設計書 I31 |
 
 あわせて、API のテスト（`tests/api/test_api.py`）で、画面の配信（`GET /`・`/static/`）、CSP の付与、画面の JavaScript が `.innerHTML` などを使っていないことを確かめる。
 
