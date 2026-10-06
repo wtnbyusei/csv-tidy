@@ -10,6 +10,7 @@ from .steps import (
     DedupeStep,
     EmptyRowStep,
     EncodabilityStep,
+    FormulaEscapeStep,
     FormulaStep,
     HeaderStep,
     Step,
@@ -22,6 +23,8 @@ def default_steps() -> list[Step]:
     """v0.1 の処理の順番（設計書 9 章のアクティビティ図）。
 
     文字の検査は元の値に対して行う。空行の判定と重複の比較は、トリムの後の値で行う。
+    無害化は、数式化の検査（整形で数式のような値になったかを、無害化の前の値で調べる）の後、
+    出力の文字コードの検査の前に行う（FR-24）。
     """
     return [
         CharScanStep(),
@@ -32,6 +35,7 @@ def default_steps() -> list[Step]:
         DedupeStep(),
         FormulaStep(),
         DataRowsStep(),
+        FormulaEscapeStep(),
         EncodabilityStep(),
     ]
 

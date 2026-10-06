@@ -32,6 +32,7 @@ const ui = {
   trim: $("opt-trim"),
   removeEmpty: $("opt-remove-empty"),
   dedupe: $("opt-dedupe"),
+  escapeFormulas: $("opt-escape-formulas"),
   dedupeNote: $("dedupe-note"),
   outputEncoding: $("output-encoding"),
   newlines: document.querySelectorAll('input[name="newline"]'),
@@ -115,6 +116,9 @@ ui.inputEncoding.addEventListener("change", () =>
 ui.trim.addEventListener("change", () => onOptionChange((o) => (o.trim = ui.trim.checked)));
 ui.removeEmpty.addEventListener("change", () => onOptionChange((o) => (o.remove_empty = ui.removeEmpty.checked)));
 ui.dedupe.addEventListener("change", () => onOptionChange((o) => (o.dedupe = ui.dedupe.checked)));
+ui.escapeFormulas.addEventListener("change", () =>
+  onOptionChange((o) => (o.escape_formulas = ui.escapeFormulas.checked)),
+);
 ui.outputEncoding.addEventListener("change", () =>
   onOptionChange((o) => (o.output_encoding = ui.outputEncoding.value)),
 );

@@ -246,7 +246,7 @@ def test_formula_like_and_invisible_characters_are_marked_in_diff(page: Page, fi
 
     # 基準 13: 空白を取ると数式になるセルだけを強調する。元から数式の値は強調しない
     expect(after.locator("td.formula")).to_have_count(1)
-    expect(after.locator("td.formula")).to_have_text("=1+1")
+    expect(after.locator("td.formula")).to_have_text("'=1+1")  # 初期状態では無害化もする（FR-49）
     expect(gutter.locator(".badge", has_text="数式になる値")).to_have_count(1)
 
     # 基準 14: ゼロ幅スペースは記号で見え、見た目が同じ行どうしは重複にならない
@@ -257,6 +257,32 @@ def test_formula_like_and_invisible_characters_are_marked_in_diff(page: Page, fi
     expect(before.locator(".mark", has_text="DEL")).to_have_count(1)
     expect(before.locator(".mark", has_text="U+0085")).to_have_count(1)
     expect(gutter.locator(".badge", has_text="制御文字")).to_have_count(2)
+
+
+# ---- 数式の無害化（FR-49、受け入れ基準 24） ----
+
+
+def test_formulas_are_escaped_by_default_and_can_be_turned_off(page: Page):
+    data = "名前,メモ\n=1+1,-5\n＝SUM(A1),ok\n".encode()
+    open_file(page, name="formula.csv", data=data)
+    wait_result(page)
+
+    after = page.get_by_test_id("diff-after")
+    expect(after.locator("td.escaped")).to_have_text(["'=1+1", "'＝SUM(A1)"])
+    expect(page.get_by_test_id("counts")).to_contain_text("数式を無害化 2 セル")
+    expect(page.get_by_test_id("diff-gutter")).to_contain_text("数式を無害化（1 セル）")
+    with page.expect_download() as info:
+        page.get_by_role("button", name="ダウンロード").click()
+    assert info.value.path().read_bytes().decode() == "名前,メモ\n'=1+1,-5\n'＝SUM(A1),ok\n"
+
+    # オフにすると値は変わらない
+    page.get_by_label("数式として扱われる値を無害化する").uncheck()
+    wait_result(page)
+    expect(after.locator("td.escaped")).to_have_count(0)
+    expect(page.get_by_test_id("counts")).not_to_contain_text("数式を無害化")
+    with page.expect_download() as info:
+        page.get_by_role("button", name="ダウンロード").click()
+    assert info.value.path().read_bytes().decode() == "名前,メモ\n=1+1,-5\n＝SUM(A1),ok\n"
 
 
 # ---- 先頭の空行（受け入れ基準 20） ----

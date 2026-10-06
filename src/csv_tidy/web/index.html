@@ -71,6 +71,10 @@
           <option value="cp932">CP932</option>
         </select>
       </div>
+      <label class="check">
+        <input type="checkbox" id="opt-escape-formulas" checked>
+        <span>数式として扱われる値を無害化する<br><span class="hint">CSV インジェクション対策。先頭が = + - @ などの値の前に ' を付けます（数値は除く）</span></span>
+      </label>
       <fieldset class="field radio">
         <legend>改行コード</legend>
         <label><input type="radio" name="newline" value="lf" checked> LF</label>

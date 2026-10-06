@@ -1,6 +1,6 @@
 # csv-tidy v0.1 受け入れテストの記録
 
-受け入れ基準（[requirements.md](requirements.md) 6 章）がすべて確かめられているかの点検、性能測定（NFR-01）、手動確認（[test-plan.md](test-plan.md) 7 章）の結果を記録する。開発計画（[plan.md](plan.md)）の作業10 にあたる。
+受け入れ基準（[requirements.md](requirements.md) 6 章。第10版で 24 件）がすべて確かめられているかの点検、性能測定（NFR-01）、手動確認（[test-plan.md](test-plan.md) 7 章）の結果を記録する。開発計画（[plan.md](plan.md)）の作業10 にあたる。
 
 - 作成日: 2026-10-06
 - 用語: 分からない用語は [glossary.md](glossary.md) を参照
@@ -10,7 +10,7 @@
 
 | 項目 | 結果 |
 | --- | --- |
-| 受け入れ基準 23 件の自動テスト | 性能（21）以外の 22 件は、すべて CI で毎回実行する自動テストで確かめている。21 は手元で実行する性能測定（3 章）で確かめる。人の目が必要な部分（基準 1 の Excel）は手動確認 M1 で確かめる |
+| 受け入れ基準 24 件の自動テスト | 性能（21）以外の 23 件は、すべて CI で毎回実行する自動テストで確かめている。21 は手元で実行する性能測定（3 章）で確かめる。人の目が必要な部分（基準 1 の Excel）は手動確認 M1 で確かめる |
 | 性能（NFR-01、基準 21） | Claude の作業環境では 3.2 秒（基準 5 秒）。**開発に使う PC での測定は未実施**（3.2 節） |
 | 手動確認 | Claude が M3・M4・M7・M9 を実施して合格（途中で見つけた表示の問題 3 件を直した）。M8 は Claude の環境で手順どおりに動くことを確かめた（参考）。M1・M2・M5・M6・M8・M10 は開発者の確認待ち |
 | 残っている確認 | 5 章のチェックリストにまとめた（作業11 で集約） |
@@ -33,7 +33,7 @@
 | 10 | NUL を含むファイルは拒否され、xlsx では保存し直しを案内する | `core/test_decoding.py::test_nul_character_is_rejected`・`test_xlsx_is_rejected_with_guidance`、API `test_core_errors_become_422`、E2E `test_errors_are_explained` | ✅ |
 | 11 | CP932 出力で絵文字があると出力が止まり、行・列と件数が表示される | `core/test_writing.py::test_unencodable_characters_are_errors_with_position`、API `test_export_unencodable_is_422`、E2E `test_unencodable_characters_disable_download` | ✅ |
 | 12 | `<script>` を含む値が実行されずに文字として表示される | E2E `test_html_in_values_is_shown_as_text`、API `test_web_files_do_not_use_inner_html` | ✅ |
-| 13 | `␣=1+1` はトリム後に警告され、差分で強調される。値は `=1+1` のまま。元から `=1+1`・`-5` のものは警告しない | `core/test_steps.py::test_cell_that_becomes_formula_like_after_trim_is_warned`・`test_originally_formula_like_cells_are_not_warned`、E2E `test_formula_like_and_invisible_characters_are_marked_in_diff`（**作業10 で追加**） | ✅ |
+| 13 | `␣=1+1` はトリム後に警告され、差分で強調される。元から `=1+1`・`-5` のものは警告しない。無害化をオフにすると値は `=1+1` のまま（第10版で変更） | `core/test_steps.py::test_cell_that_becomes_formula_like_after_trim_is_warned`・`test_originally_formula_like_cells_are_not_warned`・`test_formula_warning_is_kept_when_value_is_escaped`、E2E `test_formula_like_and_invisible_characters_are_marked_in_diff` | ✅ |
 | 14 | ゼロ幅スペースだけが違う 2 行は重複にならず、ゼロ幅スペースは警告され記号で見える。C1 制御文字や DEL も警告される | `core/test_steps.py::test_rows_differing_only_by_zero_width_space_are_not_duplicates`・`test_control_and_invisible_characters_are_warned_and_kept`、E2E `test_formula_like_and_invisible_characters_are_marked_in_diff`（**作業10 で追加**） | ✅ |
 | 15 | NBSP は取り除かれ、U+0085 や U+2028 は残る | `core/test_steps.py::test_trims_tab_and_nbsp`・`test_does_not_trim_other_characters`、性質のテスト P3 | ✅ |
 | 16 | 文字コードを手動で変えると、その文字コードで読み直される | `core/test_service.py::test_manual_input_encoding_is_used`、API `test_manual_input_encoding`、E2E `test_manual_input_encoding_rereads_file` | ✅ |
@@ -44,6 +44,7 @@
 | 21 | 10MB で 5 秒以内 | 3 章の性能測定 | ⏳（開発に使う PC での測定待ち） |
 | 22 | 初期状態では重複を削除せず、件数と該当行を表示する。オンにすると 2 件目以降を削除する | `core/test_steps.py::test_duplicates_are_reported_but_not_removed_by_default`・`test_duplicates_after_trim_are_removed_when_enabled`、E2E `test_main_flow_shows_summary_diff_and_issues`（「重複が 1 件あります」「重複: 2 行目と同じ」） | ✅ |
 | 23 | 保存するファイル名が `顧客一覧_tidy.csv` になる | E2E `test_download_is_named_after_original_file` | ✅ |
+| 24 | 初期状態で `=1+1`・`@SUM(A1)`・`＝1+1`・`+81-90-1234-5678`・`- メモ` に `'` が付き、差分と件数に表示される。ヘッダーも対象。`-5`・`+81`・`-1.5`・`-1e3` は変わらない。オフにするとどれも変わらない（第10版で追加） | `core/test_steps.py::test_values_that_can_become_formulas_need_escape`・`test_numbers_and_other_values_do_not_need_escape`・`test_escape_adds_quote_and_records_change`・`test_escape_off_keeps_values`、`core/test_service.py::test_escaped_formulas_are_exported_and_counted`、API `test_formula_escape_is_returned_as_change`、E2E `test_formulas_are_escaped_by_default_and_can_be_turned_off` | ✅ |
 
 ### 2.1 点検で見つけて補ったこと
 
@@ -137,7 +138,7 @@ M6 は E2E テスト（`test_drag_and_drop_reads_file`）でも確かめてい�
 
 | # | 確認すること | 結果 | 記録 |
 | --- | --- | --- | --- |
-| M9 | README に制限事項（CSV インジェクション対策をしないこと、Excel で開く前の注意）、スクリーンショット、起動手順、設計判断へのリンクがある（NFR-09, NFR-12） | ✅ | README の「制限事項」「動かし方」「開発の過程」「主な設計判断」の節。スクリーンショットは 2 枚。README の中のリンク先がすべて存在することも確かめた |
+| M9 | README に制限事項（CSV インジェクション対策の内容と限界、Excel で開く前の注意）、スクリーンショット、起動手順、設計判断へのリンクがある（NFR-09, NFR-12） | ✅ | README の「制限事項」「動かし方」「開発の過程」「主な設計判断」の節。スクリーンショットは 2 枚。README の中のリンク先がすべて存在することも確かめた |
 | M8（参考） | README の手順だけで起動できる（NFR-05） | ✅（Claude の環境） | Linux で、uv のキャッシュが空・Python を uv に入れさせる設定（`UV_PYTHON_PREFERENCE=only-managed`）にして、`git clone` → `uv sync` → `uv run csv-tidy` を実行した。uv が Python 3.13.7 を自動で入れ、画面（`GET /`）と整形（`POST /api/tidy`）が応答した。開発者の PC での確認は 5 章 |
 
 ### 4.4 開発者の PC で行う M8
@@ -151,7 +152,7 @@ M6 は E2E テスト（`test_drag_and_drop_reads_file`）でも確かめてい�
 作業10・11 で実施できなかった確認を、ここにまとめる（作業11 で集約）。すべて開発者の PC で行う。結果はこの文書の各節（⏳ の欄）に書き込むか、Claude に伝えて書き写してもらう。
 
 - [ ] 性能測定（受け入れ基準 21、NFR-01）: 3.1 節の手順で `uv run pytest -m perf -s` を実行し、`tests/perf/data/result.md` の中身を 3.2 節に貼る
-- [ ] M1: UTF-8（BOM 付き）＋CRLF の出力を Excel で開いて文字化けしない（4.2 節）
+- [ ] M1: UTF-8（BOM 付き）＋CRLF の出力を Excel で開いて文字化けしない（4.2 節）。あわせて `manual_check.csv` を同じ設定で出力して Excel で開き、5〜6 行目の `=1+1` が計算されず（`2` と表示されず）、文字として表示されることを確かめる（FR-49、受け入れ基準 24）
 - [ ] M2: CP932 の出力を Excel で開いて文字化けしない（4.2 節）
 - [ ] M5: Chrome・Edge・Firefox で主要な流れが動く（4.2 節）
 - [ ] M6: OS からのドラッグ＆ドロップで読み込める（4.2 節）

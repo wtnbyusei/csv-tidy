@@ -13,6 +13,7 @@ from .errors import EmptyDataError
 from .models import (
     CellTrimmed,
     Change,
+    FormulaEscaped,
     Issue,
     IssueCode,
     Level,
@@ -44,8 +45,16 @@ _INVISIBLE_NAMES = {
     "﻿": "BOM（ファイルの途中）",
 }
 
-# 表計算ソフトで数式として扱われうる先頭の文字（FR-48）
-FORMULA_PREFIXES = ("=", "+", "-", "@")
+# 表計算ソフトで数式として扱われうる先頭の文字（FR-48, FR-49）。
+# 日本語の環境では全角の文字も数式として扱われることがある（OWASP の CSV Injection）
+FORMULA_PREFIXES = ("=", "+", "-", "@", "＝", "＋", "－", "＠")
+
+# 無害化の対象にする先頭の文字（FR-49）。数式の文字に、タブ・CR・LF を加える（OWASP の CSV Injection）
+ESCAPE_PREFIXES = (*FORMULA_PREFIXES, "\t", "\r", "\n")
+
+# 数値としてそのまま読める値（符号・半角数字・小数点・指数だけ）。数式にならないので無害化しない。
+# \d は全角の数字にも当たるので、半角の [0-9] と書く
+_NUMBER = re.compile(r"[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
 
 
 @dataclass
@@ -263,6 +272,29 @@ class FormulaStep:
                             column=column,
                         )
                     )
+
+
+def needs_escape(value: str) -> bool:
+    """表計算ソフトで数式として扱われるおそれがあり、無害化が必要か（FR-49）。"""
+    return value.startswith(ESCAPE_PREFIXES) and _NUMBER.fullmatch(value) is None
+
+
+class FormulaEscapeStep:
+    """出力するセル（ヘッダーを含む）のうち、数式として扱われうる値の先頭に `'` を付ける（FR-49）。
+
+    数値として読める値（`-5` など）は対象外。ほかの処理の後、出力の直前に行う。
+    """
+
+    def apply(self, ctx: TidyContext) -> None:
+        if not ctx.options.escape_formulas:
+            return
+        for position in ctx.output_rows():
+            row = ctx.values[position]
+            for column, before in enumerate(row):
+                if needs_escape(before):
+                    after = "'" + before
+                    row[column] = after
+                    ctx.changes.append(FormulaEscaped(record=position, column=column, before=before, after=after))
 
 
 class DataRowsStep:
