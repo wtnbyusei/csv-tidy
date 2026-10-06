@@ -4,7 +4,7 @@
 
 - 英字の用語や専門用語は、初めて使うときに意味を説明してから使う（チャットの回答とドキュメントの両方）。
 - 新しい用語をドキュメントで使ったら、`docs/glossary.md` に追記する。
-- ドキュメントは `docs/` に置く。要件は `requirements.md`、設計は `design.md`、画面設計は `screen-design.md`（見本は `mockups/`）、テスト計画は `test-plan.md`、課題は `issues.md`、用語は `glossary.md`、開発計画は `plan.md`。
+- ドキュメントは `docs/` に置く。要件は `requirements.md`、設計は `design.md`、画面設計は `screen-design.md`（見本は `mockups/`）、テスト計画は `test-plan.md`、課題は `issues.md`、用語は `glossary.md`、開発計画は `plan.md`、受け入れテストの記録は `acceptance.md`。
 - 作業を終えたら `docs/plan.md` の状態を更新する。
 - 図は Mermaid で書く。
 
