@@ -91,6 +91,7 @@ function toolbar(model, view, handlers) {
       "div",
       { className: "legend" },
       el("span", {}, el("span", { className: "swatch trimmed" }), "空白を取り除いたセル"),
+      el("span", {}, el("span", { className: "swatch escaped" }), "数式を無害化したセル"),
       el("span", {}, el("span", { className: "swatch removed" }), "削除した行"),
       el("span", {}, el("span", { className: "swatch missing" }), "セルなし"),
       el("span", {}, el("span", { className: "ws" }), "半角 ", el("span", { className: "ws full" }), "全角の取り除いた空白"),
@@ -169,6 +170,7 @@ function afterRow(model, index, focus) {
     );
   }
   const trimmed = model.trimmed.get(index);
+  const escaped = model.escaped.get(index);
   const issues = model.issuesByRecord.get(index) || [];
   const formula = new Set(issues.filter((i) => i.code === "formula_like").map((i) => i.column));
   const unencodable = new Map();
@@ -188,6 +190,7 @@ function afterRow(model, index, focus) {
     }
     const classes = [];
     if (trimmed && trimmed.has(c)) classes.push("trimmed");
+    if (escaped && escaped.has(c)) classes.push("escaped");
     if (formula.has(c)) classes.push("formula");
     if (unencodable.has(c)) classes.push("unencodable");
     const td = el("td", { className: classes.join(" "), title: values[c] });
@@ -309,6 +312,8 @@ function gutterRow(model, index, focus) {
   }
 
   // 帯の幅（180px）に収まらないときに大事なバッジが隠れないよう、空白の説明は最後に置く
+  const escaped = model.escaped.get(index);
+  if (escaped) add("note-text", `数式を無害化（${escaped.size} セル）`);
   const trimmed = model.trimmed.get(index);
   if (trimmed) add("note-text", `空白を取り除いた（${trimmed.size} セル）`);
 

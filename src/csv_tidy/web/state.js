@@ -19,6 +19,7 @@ export function defaultOptions() {
     trim: true,
     remove_empty: true,
     dedupe: false,
+    escape_formulas: true,
     output_encoding: "utf-8",
     newline: "lf",
   };
@@ -80,8 +81,9 @@ export function formatSize(bytes) {
 export function replayChanges(result) {
   const after = result.records.map((record) => record.cells.slice());
   for (const change of result.changes) {
-    if (change.type === "cell_trimmed") after[change.record][change.column] = change.after;
-    else if (change.type === "row_removed") after[change.record] = null;
+    // 削除以外の変更（空白を取り除いた、数式を無害化した）は、記録された変更後の値に差し替える
+    if (change.type === "row_removed") after[change.record] = null;
+    else after[change.record][change.column] = change.after;
   }
   return after;
 }
@@ -99,13 +101,16 @@ export function buildModel(result) {
 
   const removed = new Map(); // レコード → 削除の記録
   const trimmed = new Map(); // レコード → Map（空白を取り除いた列 → 取り除いた後の値）
+  const escaped = new Map(); // レコード → Map（数式を無害化した列 → 無害化した後の値）（FR-49）
   for (const change of result.changes) {
-    if (change.type === "row_removed") removed.set(change.record, change);
-    else {
-      let columns = trimmed.get(change.record);
-      if (!columns) trimmed.set(change.record, (columns = new Map()));
-      columns.set(change.column, change.after);
+    if (change.type === "row_removed") {
+      removed.set(change.record, change);
+      continue;
     }
+    const byRecord = change.type === "formula_escaped" ? escaped : trimmed;
+    let columns = byRecord.get(change.record);
+    if (!columns) byRecord.set(change.record, (columns = new Map()));
+    columns.set(change.column, change.after);
   }
 
   const issuesByRecord = new Map();
@@ -134,7 +139,7 @@ export function buildModel(result) {
   // 変更か課題のある行（「変更 k / N」の対象）
   const changed = [];
   for (let i = 0; i < count; i++) {
-    if (removed.has(i) || trimmed.has(i) || issuesByRecord.has(i)) changed.push(i);
+    if (removed.has(i) || trimmed.has(i) || escaped.has(i) || issuesByRecord.has(i)) changed.push(i);
   }
 
   const header = records[result.header_record];
@@ -144,6 +149,7 @@ export function buildModel(result) {
     after,
     removed,
     trimmed,
+    escaped,
     issuesByRecord,
     outLine,
     changed,

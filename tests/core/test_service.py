@@ -157,3 +157,18 @@ def test_service_keeps_no_state_between_calls():
     assert first.stats.duplicates_removed == 1
     assert second.stats.duplicates_removed == 0
     assert first.records == second.records
+
+
+def test_escaped_formulas_are_exported_and_counted():
+    """受け入れ基準 24: 無害化した値が出力に入り、件数に数えられる。トリムと無害化が同じセルに重なっても、
+    変更の記録を当てはめた表（画面の表）と出力が一致する。"""
+    data = make_csv([["名前", "メモ"], ["=1+1", " @x"], ["-5", "ok"]])
+    result = service.tidy(data, TidyOptions())
+    assert result.stats.formulas_escaped == 2
+    assert service.export(data, TidyOptions()).decode("utf-8") == "名前,メモ\n'=1+1,'@x\n-5,ok\n"
+    assert replay_changes(result) == [["名前", "メモ"], ["'=1+1", "'@x"], ["-5", "ok"]]
+
+
+def test_escape_off_exports_original_values():
+    data = make_csv([["名前"], ["=1+1"]])
+    assert service.export(data, TidyOptions(escape_formulas=False)).decode("utf-8") == "名前\n=1+1\n"

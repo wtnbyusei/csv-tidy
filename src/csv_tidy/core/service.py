@@ -4,6 +4,7 @@ from .decoding import decode
 from .errors import UnencodableError
 from .models import (
     CellTrimmed,
+    FormulaEscaped,
     IssueCode,
     RemoveReason,
     RowRemoved,
@@ -76,4 +77,5 @@ def compute_stats(ctx: TidyContext) -> Stats:
         invisible_chars=codes.count(IssueCode.INVISIBLE_CHAR),
         formula_warnings=codes.count(IssueCode.FORMULA_LIKE),
         unencodable_chars=codes.count(IssueCode.UNENCODABLE),
+        formulas_escaped=sum(isinstance(c, FormulaEscaped) for c in ctx.changes),
     )

@@ -48,7 +48,8 @@ Mermaid にはユースケース図とパッケージ図の専用の記法がな
 | F-09 | 空行の削除 | すべてのセルが空の行を削除する | コア | FR-21 |
 | F-10 | 列数の検査 | ヘッダーと列数が違う行を警告する | コア | FR-30, FR-31 |
 | F-11 | 重複行の検出と削除 | 列数と全セルが一致する行を検出する。削除が有効なとき（初期状態はオフ）だけ2件目以降を削除し、無効なときは情報として表示する | コア | FR-22 |
-| F-12 | 数式化の検査 | 整形で先頭が `=` `+` `-` `@` になったセルを警告する | コア | FR-48 |
+| F-12 | 数式化の検査 | 整形で先頭が `=` `+` `-` `@`（全角を含む）になったセルを警告する | コア | FR-48 |
+| F-12a | 数式の無害化 | 出力するセルのうち、数式として扱われうる値（数値を除く）の先頭に `'` を付ける。初期状態はオン（作業12 で追加） | コア | FR-49 |
 | F-13 | 出力文字コードの検査 | CP932 で表せない文字を見つけ、出力できない状態にする | コア | FR-16 |
 | F-14 | CSV 書き出し | 選んだ文字コードと改行コードでバイト列にする | コア | FR-14, FR-15, FR-50 |
 | F-15 | 整形結果の取得 | ファイルと設定を受け取り、整形結果を JSON で返す | API | NFR-08 |
@@ -228,6 +229,7 @@ classDiagram
         +bool trim
         +bool remove_empty
         +bool dedupe
+        +bool escape_formulas
         +OutputEncoding output_encoding
         +Newline newline
     }
@@ -273,6 +275,11 @@ classDiagram
         +str before
         +str after
     }
+    class FormulaEscaped {
+        +int column
+        +str before
+        +str after
+    }
     class RowRemoved {
         +RemoveReason reason
         +int|None duplicate_of
@@ -309,6 +316,7 @@ classDiagram
         +int invisible_chars
         +int formula_warnings
         +int unencodable_chars
+        +int formulas_escaped
     }
 
     class TidyResult {
@@ -326,6 +334,7 @@ classDiagram
     TidyOptions --> OutputEncoding
     TidyOptions --> Newline
     Change <|-- CellTrimmed
+    Change <|-- FormulaEscaped
     Change <|-- RowRemoved
     RowRemoved --> RemoveReason
     Issue --> Level
@@ -337,7 +346,7 @@ classDiagram
     TidyResult --> TidyOptions
 ```
 
-- `Record.cells` は読み込んだままの値を持つ。整形後の値は `Change` を当てはめて求める。`CellTrimmed` は変更後の値（`after`）そのものを持つため、画面側は値を差し替えるだけで済み、計算をやり直さない。変更前と変更後の表を両方持たないことで、送るデータの量をおよそ半分にする。
+- `Record.cells` は読み込んだままの値を持つ。整形後の値は `Change` を当てはめて求める。`CellTrimmed` と `FormulaEscaped` は変更後の値（`after`）そのものを持つため、画面側は値を差し替えるだけで済み、計算をやり直さない。変更前と変更後の表を両方持たないことで、送るデータの量をおよそ半分にする。
 - `Record.line_start` と `line_end` は元ファイルでの行番号。複数行にまたがるセルがあると、この2つが異なる。
 - `exportable()` は、レベルが ERROR の課題（CP932 で表せない文字など）がないときに真を返す。
 - `NewlineStyle` は元ファイルで行の区切りに使われていた改行コード（`LF`・`CRLF`・`CR`・混在 `MIXED`・改行なし `NONE`）を表す列挙型。クォートで囲まれたセルの中の改行は数えない。画面上部の「変換元 → 変換先」の表示（FR-47）に使う。図が大きくなるため省略した。
@@ -381,6 +390,7 @@ classDiagram
     class DedupeStep
     class FormulaStep
     class DataRowsStep
+    class FormulaEscapeStep
     class EncodabilityStep
 
     Step <|.. CharScanStep
@@ -391,6 +401,7 @@ classDiagram
     Step <|.. DedupeStep
     Step <|.. FormulaStep
     Step <|.. DataRowsStep
+    Step <|.. FormulaEscapeStep
     Step <|.. EncodabilityStep
 
     TidyService --> Pipeline
@@ -556,8 +567,11 @@ flowchart TD
     dupinfo --> formula
     formula --> dataRows{"データ行があるか"}
     dataRows -- いいえ --> info["情報: データ行がありません"]
-    dataRows -- はい --> enc
-    info --> enc{"出力が CP932 か"}
+    dataRows -- はい --> esc
+    info --> esc{"数式の無害化が有効か"}
+    esc -- はい --> doesc["数式として扱われうる値の先頭に ' を付ける → 変更を記録"]
+    esc -- いいえ --> enc
+    doesc --> enc{"出力が CP932 か"}
     enc -- はい --> encCheck["CP932 で表せない文字を検査 → エラー（出力不可）"]
     enc -- いいえ --> result
     encCheck --> result([整形結果を返す])
@@ -643,6 +657,7 @@ stateDiagram-v2
   "trim": true,
   "remove_empty": true,
   "dedupe": false,
+  "escape_formulas": true,
   "output_encoding": "utf-8",
   "newline": "lf"
 }
@@ -651,7 +666,7 @@ stateDiagram-v2
 - `input_encoding`: `null`（自動判定）、`"utf-8-sig"`、`"utf-8"`、`"cp932"`
 - `output_encoding`: `"utf-8"`、`"utf-8-bom"`、`"cp932"`
 - `newline`: `"lf"`、`"crlf"`
-- 上の例は初期状態の値。`trim` と `remove_empty` は `true`、`dedupe` は `false`（FR-22）
+- 上の例は初期状態の値。`trim` と `remove_empty` は `true`、`dedupe` は `false`（FR-22）、`escape_formulas` は `true`（FR-49）
 
 ### 11.2 整形結果（`POST /api/tidy` の応答）
 
@@ -678,7 +693,7 @@ stateDiagram-v2
 
 - この応答例は、`dedupe` を `true` にしたときのもの。
 - 課題（`issues`）はすべて返し、「最初の 20 件」に絞るのは画面側で行う。
-- 変更後の値は、画面側で `records` に `changes` を当てはめて求める。
+- 変更後の値は、画面側で `records` に `changes` を当てはめて求める。変更の種類（`type`）は `cell_trimmed`（空白を取り除いた）、`formula_escaped`（数式を無害化した。FR-49）、`row_removed`（行を削除した）の 3 つ。前の 2 つは `column` と `after` を持ち、画面は値を `after` に差し替える。
 
 ### 11.3 エラー応答
 
@@ -752,3 +767,6 @@ stateDiagram-v2
 | I30 | 10 | 差分の表の 1 列の最小の幅を 96px から 72px に、行番号の欄を 72px から 88px にした | 受け入れテストの手動確認 M3 で、画面設計の前提の幅 1280px では 4 列目が切れていたため。行番号の欄は「812〜813」のような複数行の行番号が切れていたため |
 | I31 | 10 | 変更の帯の中は、削除・課題のバッジを先に、「空白を取り除いた（N セル）」の説明を最後に並べる | 手動確認 M4 で、帯（180px）に収まらないときに「数式になる値」などのバッジが隠れていたため。すべての内容はマウスを重ねると読める |
 | I32 | 10 | E2E と性能測定で共通のフィクスチャ（テスト用のサーバーの起動など）を `tests/browser_fixtures.py` にまとめ、それぞれの conftest.py から読み込む | 性能測定でも、画面の表示までの時間を Playwright で測るため |
+| I33 | 12 | 数式の無害化（FR-49）を `FormulaEscapeStep` として、数式化の検査（`FormulaStep`）と `DataRowsStep` の後、CP932 の検査（`EncodabilityStep`）の前に置いた。変更は `FormulaEscaped`（`before`・`after` を持つ）として記録し、API では `formula_escaped` として返す。7.1・7.2 のクラス図と 9 章のアクティビティ図も更新 | 数式化の検査は無害化の前の値で行う必要がある（`'` が付くと数式のように見えなくなる）。CP932 の検査は、出力する最終の値に対して行うため最後に置く |
+| I34 | 12 | 変更の記録を当てはめる手順（`writing.replay_changes()` と画面の `replayChanges()`）は、「行の削除以外の変更は、`after` に差し替える」という形にした | 変更の種類が増えても、当てはめ方を変えずに済むようにするため。出力との一致はテスト P5 と E2E で確かめている |
+| I35 | 12 | 「数値として読める値」は、符号・半角数字・小数点・指数だけからなる値とし、正規表現の `\d` ではなく `[0-9]` で判定する | Python の `\d` は全角の数字（`５` など）にも当たる。全角の `－５` は数値として読めないことがあるため、無害化の対象に残す |

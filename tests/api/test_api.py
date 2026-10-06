@@ -71,6 +71,16 @@ def test_options_are_applied():
     assert body["stats"]["duplicates_removed"] == 0
 
 
+def test_formula_escape_is_returned_as_change():
+    """FR-49: 無害化は変更として返し、設定でオフにできる。"""
+    data = make_csv([["名前"], ["=1+1"]])
+    body = post("/api/tidy", data).json()
+    assert body["changes"] == [{"type": "formula_escaped", "record": 1, "column": 0, "after": "'=1+1"}]
+    assert body["stats"]["formulas_escaped"] == 1
+    body = post("/api/tidy", data, {"escape_formulas": False}).json()
+    assert body["changes"] == []
+
+
 def test_manual_input_encoding():
     """受け入れ基準 16: 文字コードを指定すると、その文字コードで読み直す。"""
     body = post("/api/tidy", b"a,b\n", {"input_encoding": "cp932"}).json()

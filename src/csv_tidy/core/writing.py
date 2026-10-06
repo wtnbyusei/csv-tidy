@@ -4,7 +4,7 @@ import csv
 import io
 from collections.abc import Sequence
 
-from .models import CellTrimmed, Newline, OutputEncoding, RowRemoved, TidyResult
+from .models import CellTrimmed, FormulaEscaped, Newline, OutputEncoding, RowRemoved, TidyResult
 
 _CODECS = {
     OutputEncoding.UTF8: "utf-8",
@@ -34,7 +34,7 @@ def replay_changes(result: TidyResult) -> list[list[str]]:
     """
     values = {record.index: list(record.cells) for record in result.records}
     for change in result.changes:
-        if isinstance(change, CellTrimmed):
+        if isinstance(change, (CellTrimmed, FormulaEscaped)):
             values[change.record][change.column] = change.after
         elif isinstance(change, RowRemoved):
             del values[change.record]

@@ -29,6 +29,7 @@ export function renderSummary(container, model, options) {
     count("warn", `見えない文字 ${stats.invisible_chars}`, stats.invisible_chars),
     count("warn", `制御文字 ${stats.control_chars}`, stats.control_chars),
     count("warn", `数式化の警告 ${stats.formula_warnings}`, stats.formula_warnings),
+    options.escape_formulas ? count("escaped", `数式を無害化 ${stats.formulas_escaped} セル`, stats.formulas_escaped) : null,
     output.encoding === "cp932"
       ? count("error", `CP932 で表せない文字 ${stats.unencodable_chars}`, stats.unencodable_chars)
       : null,
