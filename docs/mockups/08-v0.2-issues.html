@@ -2,11 +2,11 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>csv-tidy 画面の見本: v0.2 列の操作</title>
+<title>csv-tidy 画面の見本: v0.2 課題の一覧</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<!-- 動かない見本。画面設計書 docs/screen-design.md の「v0.2 列の操作」に対応する（B 改。2026-10-06 に開発者が選択）。 -->
+<!-- 動かない見本。画面設計書 docs/screen-design.md の「v0.2 列の操作」の課題タブに対応する。 -->
 <div class="app">
   <header class="app-header"><h1>csv-tidy</h1><span>CSV を使いやすい形に整える</span></header>
   <aside class="sidebar">
@@ -65,54 +65,24 @@
       </div>
     </div>
     <div>
-    <div class="tabs"><span class="tab on">差分</span><span class="tab">課題（4）</span></div>
+    <div class="tabs"><span class="tab">差分</span><span class="tab on">課題（4）</span></div>
     <div class="panel">
-      <div class="toolbar">
-        <div class="radio"><span class="on">変更箇所のみ</span><span>全行</span></div>
-        <span class="button">◀ 前の変更</span><span class="button">次の変更 ▶</span>
-        <span class="hint">変更 ― / 5</span>
-      </div>
-      <div class="diff3">
-        <div>
-          <h3>変更前（元の列の順番）</h3>
-          <table>
-            <tr><th class="ln">行</th><th>ID</th><th>名前</th><th>年齢</th><th>住所</th><th>電話</th><th>（6 列目）</th></tr>
-            <tr><td class="ln">1</td><td>ID</td><td>名前</td><td>年齢</td><td>住所</td><td>電話</td><td class="missing">セルなし</td></tr>
-            <tr class="dup-origin"><td class="ln">2</td><td>C001</td><td>山田太郎</td><td>30</td><td>東京都</td><td>03-1111</td><td>VIP</td></tr>
-            <tr><td class="ln">3</td><td>C002</td><td class="trimmed"><span class="ws"></span>佐藤花子</td><td>25</td><td>大阪府</td><td>06-3333</td><td></td></tr>
-            <tr class="removed"><td class="ln">4</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-            <tr><td class="ln">6</td><td>C004</td><td>田中次郎</td><td>2<span class="mark">ZWSP</span>8</td><td>福岡県</td><td>092-555</td><td></td></tr>
-            <tr class="dup"><td class="ln">7</td><td>C005</td><td>山田太郎</td><td>30</td><td>東京都</td><td>03-1111</td><td>VIP</td></tr>
-            <tr class="gap"><td colspan="7">… 変更のない 993 行を省略 …</td></tr>
-          </table>
-        </div>
-        <div class="gutter">
-          <h3>変更</h3>
-          <table>
-            <tr><th>この行で起きたこと</th></tr>
-            <tr><td><span class="arrow">→</span><span class="note-text">ヘッダー・列名を整えた（1 列）</span></td></tr>
-            <tr><td><span class="arrow">→</span><span class="badge origin">重複の元（7 行目）</span><span class="more">他 1</span></td></tr>
-            <tr><td><span class="arrow">→</span><span class="note-text">空白を取り除いた（1 セル）</span></td></tr>
-            <tr><td><span class="arrow">→</span><span class="badge">削除: 空行</span></td></tr>
-            <tr><td><span class="arrow">→</span><span class="badge warn">見えない文字</span><span class="off-col">出力しない列</span></td></tr>
-            <tr><td><span class="arrow">→</span><span class="badge dup">重複: 2 行目と同じ</span><span class="more">他 1</span></td></tr>
-            <tr class="gap"><td></td></tr>
-          </table>
-        </div>
-        <div>
-          <h3>変更後（出力する列の順番と名前）</h3>
-          <table>
-            <tr><th class="ln">行</th><th>ID</th><th>氏名 <span class="orig">← 名前</span></th><th>電話</th><th>住所</th><th class="fixed-name">列6 <span class="orig">← 空</span></th></tr>
-            <tr><td class="ln">1</td><td>ID</td><td>氏名</td><td>電話</td><td>住所</td><td>列6</td></tr>
-            <tr class="dup-origin"><td class="ln">2</td><td>C001</td><td>山田太郎</td><td>03-1111</td><td>東京都</td><td>VIP</td></tr>
-            <tr><td class="ln">3</td><td>C002</td><td class="trimmed">佐藤花子</td><td>06-3333</td><td>大阪府</td><td></td></tr>
-            <tr class="placeholder"><td class="ln"></td><td colspan="5">（出力しない）</td></tr>
-            <tr><td class="ln">5</td><td>C004</td><td>田中次郎</td><td>092-555</td><td>福岡県</td><td></td></tr>
-            <tr class="dup"><td class="ln">6</td><td>C005</td><td>山田太郎</td><td>03-1111</td><td>東京都</td><td>VIP</td></tr>
-            <tr class="gap"><td colspan="6">… 変更のない 993 行を省略 …</td></tr>
-          </table>
-        </div>
-      </div>
+      <details class="issue-group warn" open>
+        <summary class="issue-head">警告<span class="count warn">3 件</span></summary>
+        <div class="issue-head" style="font-weight:normal">列数がヘッダーと違う行（2 件）</div>
+        <ul>
+          <li><a href="#">2 行目: 列数 6（ヘッダーは 5）→ 差分で見る</a></li>
+          <li><a href="#">7 行目: 列数 6（ヘッダーは 5）→ 差分で見る</a></li>
+        </ul>
+        <div class="issue-head" style="font-weight:normal">見えない文字（1 件）</div>
+        <ul><li><a href="#">6 行目・年齢の列（出力しない列）: ゼロ幅スペース（U+200B）→ 差分で見る</a></li></ul>
+      </details>
+      <details class="issue-group info" open>
+        <summary class="issue-head">情報<span class="count info">1 件</span></summary>
+        <div class="issue-head" style="font-weight:normal">重複している行（1 件）・重複行の削除はオフです</div>
+        <ul><li><a href="#">7 行目: 2 行目と同じ（比べた列: 名前・電話・住所・6 列目）→ 差分で見る</a></li></ul>
+      </details>
+      <div class="issue-more">列名を整えたことは課題ではなく変更として、概要の件数と差分に示します。「列名を整える」をオフにすると、警告「6 列目: 列名が空です」が出ます。</div>
     </div>
     </div>
   </main>
