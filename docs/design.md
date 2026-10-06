@@ -770,3 +770,164 @@ stateDiagram-v2
 | I33 | 12 | 数式の無害化（FR-49）を `FormulaEscapeStep` として、数式化の検査（`FormulaStep`）と `DataRowsStep` の後、CP932 の検査（`EncodabilityStep`）の前に置いた。変更は `FormulaEscaped`（`before`・`after` を持つ）として記録し、API では `formula_escaped` として返す。7.1・7.2 のクラス図と 9 章のアクティビティ図も更新 | 数式化の検査は無害化の前の値で行う必要がある（`'` が付くと数式のように見えなくなる）。CP932 の検査は、出力する最終の値に対して行うため最後に置く |
 | I34 | 12 | 変更の記録を当てはめる手順（`writing.replay_changes()` と画面の `replayChanges()`）は、「行の削除以外の変更は、`after` に差し替える」という形にした | 変更の種類が増えても、当てはめ方を変えずに済むようにするため。出力との一致はテスト P5 と E2E で確かめている |
 | I35 | 12 | 「数値として読める値」は、符号・半角数字・小数点・指数だけからなる値とし、正規表現の `\d` ではなく `[0-9]` で判定する | Python の `\d` は全角の数字（`５` など）にも当たる。全角の `－５` は数値として読めないことがあるため、無害化の対象に残す |
+
+## 15. v0.2 の設計（列の操作）
+
+要件は要件定義書 4.7 節（FR-60〜69）、画面は画面設計書 7 章と 4.3 節。開発計画の作業16 で決めた（2026-10-06）。v0.1 の考え方（コアは標準ライブラリだけ、サーバーは状態を持たない、変更は記録して返す）はそのまま引き継ぐ。
+
+### 15.1 設定（options）の追加
+
+```json
+{
+  "columns": [
+    { "source": 0, "name": null, "keep": true, "compare": false },
+    { "source": 1, "name": "氏名", "keep": true, "compare": true },
+    { "source": 4, "name": null, "keep": true, "compare": true },
+    { "source": 3, "name": null, "keep": true, "compare": true },
+    { "source": 2, "name": null, "keep": false, "compare": false },
+    { "source": 5, "name": null, "keep": true, "compare": true }
+  ],
+  "tidy_names": true
+}
+```
+
+| 項目 | 意味 | 初期値 |
+| --- | --- | --- |
+| `columns` | 列の一覧の最終形（画面設計書 7.2）。配列の順番が出力の順番 | `null`（読み込んだときの状態。全列を元の順番・元の名前で出力し、すべて比べる） |
+| `columns[].source` | 元の何列目か（0 から数える）。ヘッダーにない列も含む | ― |
+| `columns[].name` | 出力する列名。`null` なら元のヘッダーの値（空白を取り除いた後の値。ヘッダーにない列は空） | `null` |
+| `columns[].keep` | 出力するか（FR-61） | `true` |
+| `columns[].compare` | 重複の判定に使うか（FR-65） | `keep` と同じ |
+| `tidy_names` | 列名を整える（FR-66） | `true` |
+
+- `columns` を指定するときは、`source` に 0 から列数−1 までがちょうど 1 回ずつ現れること（列の並べ替えであること）を求める。満たさないときは 422 `invalid_options`（`fields: ["columns"]`）にする。画面は、別のファイルを選んだら `columns` を `null` に戻す（FR-64）。
+- 列数（`width`）は、ヘッダーと全データ行のうち最も多い列数（FR-60）。整形結果で返す（15.4）。
+
+### 15.2 処理の順番（Step）
+
+```mermaid
+flowchart LR
+    cs[CharScanStep] --> tr[TrimStep] --> hd[HeaderStep] --> er[EmptyRowStep] --> cc[ColumnCountStep]
+    cc --> dd["DedupeStep<br/>（比べる列だけで判定）"] --> fm[FormulaStep] --> dr[DataRowsStep]
+    dr --> cp["ColumnPlanStep（新規）<br/>列の計画を決め、名前の変更と<br/>列名を整える"] --> fe["FormulaEscapeStep<br/>（出力する列だけ）"] --> en["EncodabilityStep<br/>（出力する列だけ）"]
+```
+
+| Step | v0.2 で変えること |
+| --- | --- |
+| `DedupeStep` | 比べるキーを「比べる列の値」にする。行ごとに、比べる列それぞれについて、セルがあればその値、なければ「セルなし」を表す値を並べたものをキーにする（セルなしと空のセルを区別する。FR-65）。比べる列が 1 つもなければ何もしない。初期状態（全列を比べる）では v0.1 と同じ判定になる |
+| `ColumnPlanStep`（新規） | `columns` から列の計画（出力する列の並び）を決めて `ctx.plan` に置く。出力する列の名前を決め、元の名前と違えば `HeaderRenamed`（理由 `renamed`）を記録する。`tidy_names` がオンなら FR-66 の順（改行→空→重複）で直し、直した列ごとに `HeaderRenamed`（理由 `tidied`）を記録する。オフなら、あるべき姿でない名前を課題 `header_name`（警告）にする |
+| `FormulaEscapeStep` | 出力する行のうち、出力する列のセルだけを対象にする（FR-67） |
+| `EncodabilityStep` | 同上 |
+
+文字の検査（`CharScanStep`）、列数の検査（`ColumnCountStep`）、数式化の検査（`FormulaStep`）は、v0.1 と同じくすべての列を対象にする。
+
+### 15.3 データ型の追加
+
+```mermaid
+classDiagram
+    direction LR
+    class TidyOptions {
+        +list~ColumnSpec~|None columns
+        +bool tidy_names
+    }
+    class ColumnSpec {
+        +int source
+        +str|None name
+        +bool keep
+        +bool compare
+    }
+    class HeaderRenamed {
+        +int column
+        +str before
+        +str after
+        +RenameReason reason
+    }
+    class RenameReason {
+        <<enumeration>>
+        RENAMED
+        TIDIED
+    }
+    Change <|-- HeaderRenamed
+    HeaderRenamed --> RenameReason
+    TidyOptions o-- "*" ColumnSpec
+```
+
+- `HeaderRenamed` は、ヘッダー行（`record` はヘッダーの Record.index）のセル `column`（元の何列目か）の値を `after` に変えた記録。ヘッダーにない列の名前を決めたときも、ヘッダー行のその位置のセルとして記録する（`before` は空）。
+- 列の計画（出力する列の `source` の並び）は、整形結果にも入れる（15.4）。
+- `IssueCode` に `header_name`（列名が空・重複・改行を含む。`tidy_names` がオフのとき）を加える。
+- `Stats` に `header_names_tidied`（整えた列名の数）を加える。
+
+### 15.4 整形結果（API の応答）の追加
+
+```json
+{
+  "width": 6,
+  "columns": [
+    { "source": 0, "keep": true, "compare": false },
+    { "source": 1, "keep": true, "compare": true }
+  ],
+  "changes": [
+    { "type": "header_renamed", "record": 0, "column": 1, "after": "氏名", "reason": "renamed" },
+    { "type": "header_renamed", "record": 0, "column": 5, "after": "列6", "reason": "tidied" }
+  ]
+}
+```
+
+- `columns` は、実際に使った列の計画（`options.columns` が `null` なら初期状態の計画）。画面はこれで右の表の列の並びと、課題の「（出力しない列）」を決める。
+- 重複の組（画面設計書 4.3）は、v0.1 と同じ課題 `duplicate` の `related_record` と、行の削除 `row_removed` の `duplicate_of` から画面で組み立てる。API には追加しない。
+
+### 15.5 変更の記録を当てはめる手順（D2・I12・I34 の拡張）
+
+画面の `replayChanges()` と、コアの `writing.replay_changes()` を次の手順にそろえる。出力との一致はテスト P5 で確かめる（テスト計画書 12 章）。
+
+1. 元の値に、行の削除以外の変更（`cell_trimmed`・`header_renamed`・`formula_escaped`）を記録の順に当てはめる。セルの位置が行の長さを超えるとき（ヘッダーにない列の名前など）は、その位置まで空のセルを足してから値を入れる。
+2. 削除した行を除く。
+3. 各行を、列の計画の出力する列の順に並べ直す。セルがない位置は空のセルにする。ただし、行の末尾に続くセルがない位置は出力しない（作業16 の開発者の決定）。
+
+```mermaid
+flowchart LR
+    rec["元の値（records）"] --> a["① 変更を当てはめる<br/>（空白・列名・無害化）"] --> b["② 削除した行を除く"] --> c["③ 出力する列の順に並べる<br/>途中のセルなし → 空<br/>末尾のセルなし → 出さない"] --> out["出力する表"]
+```
+
+- 3 の決まりにより、列の操作をしないとき（初期状態）の出力は v0.1 と同じになる（受け入れ基準 29）。
+- 途中のセルなしを空にしたセルは、画面の差分で「セルなし → 空として出力」と示す（右の表の該当セルを斜線ではなく空で示し、マウスを重ねると説明を出す）。
+
+### 15.6 画面の用語の説明（「？」）
+
+画面の専門用語に「？」を付け、押すと短い説明を出す（2026-10-06 の開発者の決定。画面設計書 11 章）。
+
+| 項目 | 設計 |
+| --- | --- |
+| 説明の置き場所 | `web/help.js` に用語ごとの説明をまとめて持つ（`{ 用語のキー: { title, what, why } }`）。画面の各所は、キーを指定して同じ説明を使う |
+| 部品 | `views/dom.js` に `helpButton(key)` を加える。「？」のボタンを作り、押すとその場に吹き出しを出す。文字は `textContent` で入れる（NFR-07） |
+| 動き | 吹き出しは一度に 1 つだけ。もう一度押す、Esc キー、吹き出しの外を押すと閉じる。ボタンには `aria-expanded` と `aria-controls` を付け、画面読み上げソフトに開閉を伝える |
+| 書き方の決まり | `title`: 画面に出ている用語。`what`: 何か（40 字まで）。`why`: なぜ困るか・どうするか（60 字まで）。正式な名前や番号（U+200B など）は `what` の後ろに括弧で添える |
+
+v0.1 の画面にある用語の一覧（作業18 で説明を書いて入れる）:
+
+| キー | 画面の用語 | 出る場所 |
+| --- | --- | --- |
+| `invisible_char` | 見えない文字 | 概要の件数、変更の帯、課題の一覧 |
+| `control_char` | 制御文字 | 同上 |
+| `nbsp` | NBSP | 整形の「空白を取り除く」の補足 |
+| `bom` | BOM 付き | 読み込み・出力の文字コード |
+| `cp932` | CP932 | 同上、ダウンロードできない理由 |
+| `newline` | LF・CRLF | 出力の改行コード、概要 |
+| `missing_cell` | セルなし | 差分の凡例 |
+| `multiline_cell` | 複数行のセル | 変更の帯、課題の一覧 |
+| `column_count` | 列数の警告 | 概要の件数、課題の一覧 |
+| `formula_like` | 数式になる値・数式化の警告 | 同上 |
+| `formula_escape` | 数式の無害化 | 出力の欄、概要の件数 |
+| `duplicate` | 重複・重複の元 | 整形の欄、変更の帯、課題の一覧 |
+
+v0.2 で加える用語（同じく作業18）: `compare`（比べる・重複の判定）、`tidy_names`（列名を整える）、`headerless`（ヘッダーなし）、`not_output`（出力しない列）。
+
+### 15.7 v0.2 で決めた細部
+
+| # | 内容 | 理由 |
+| --- | --- | --- |
+| V1 | 列の操作は、セルの値を変える記録ではなく、出力の最後に「列の計画で並べ直す」手順として扱う。列名の変更だけは、ヘッダー行のセルの変更（`HeaderRenamed`）として記録する | 列の並べ替えをセルごとの変更として記録すると、記録の量が行数×列数になる。並べ直しは計画 1 つで表せる |
+| V2 | `columns` は、列の並べ替え（全列がちょうど 1 回ずつ）でなければ受け付けない | 画面の不具合で列が抜けたり重なったりしたまま出力するのを防ぐため。設定がファイルと合わないことにもすぐ気づける |
+| V3 | 列を並べ替えた結果、行の途中に来た「セルなし」は空のセルとして出力し、末尾の「セルなし」は出力しない（開発者の決定） | 列の位置をずらさないため（詰めると値が別の列に入る）。列の操作をしないときは v0.1 と同じ出力になる |
+| V4 | 数式化の警告（`FormulaStep`）は、v0.1 と同じくすべての列を対象にする。出力しない列の警告には、画面で「（出力しない列）」と添える | FR-67 で対象外にするのは、出力の内容を変える無害化と、出力を止める CP932 の検査だけのため |
+| V5 | 重複の組の情報は API に加えず、画面で既存の `related_record`・`duplicate_of` から組み立てる | 必要な情報はすでに返している。応答を大きくしない |
