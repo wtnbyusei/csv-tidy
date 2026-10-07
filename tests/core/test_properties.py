@@ -1,4 +1,4 @@
-"""プロパティベーステスト（テスト計画書 6章の P1〜P6）。
+"""プロパティベーステスト（テスト計画書 6章の P1〜P6、12.3 節の P5 の拡張・P7・P8）。
 
 ランダムな入力を大量に作り、どんな入力でも成り立つ性質を確かめる。
 """
@@ -193,3 +193,107 @@ def test_p6_service_never_fails_unexpectedly(data, options, input_encoding):
     except TidyError:
         pass
 
+
+
+# --- v0.2 の列の操作（テスト計画書 12.3 の P5 の拡張・P7・P8） ----------------------
+
+from csv_tidy.core.models import ColumnSpec  # noqa: E402
+from csv_tidy.core.steps import tidy_names  # noqa: E402
+
+plan_name = st.one_of(st.none(), st.sampled_from(["", "a", "名前", "=x", "列1", "a_2", "x\ny"]))
+
+
+@st.composite
+def table_and_plan(draw):
+    """表と、その表の列数に合う列の計画（並べ替え・出力しない列・名前の変更・比べる列）。"""
+    rows = draw(messy_table)
+    try:
+        width = service.tidy(write(rows, "\n").encode("utf-8"), TidyOptions()).width
+    except TidyError:
+        width = 0
+    order = draw(st.permutations(list(range(width))))
+    columns = tuple(
+        ColumnSpec(source=source, name=draw(plan_name), keep=draw(st.booleans()), compare=draw(st.booleans()))
+        for source in order
+    )
+    return rows, columns
+
+
+@given(table_and_plan(), options_strategy, st.booleans(), st.booleans())
+def test_p5_replayed_changes_match_export_with_column_plan(table, options, escape, tidy):
+    """P5（拡張）: 列の計画をランダムに作っても、変更の記録を当てはめた表と出力が一致する。"""
+    rows, columns = table
+    options = TidyOptions(
+        trim=options.trim,
+        remove_empty=options.remove_empty,
+        dedupe=options.dedupe,
+        escape_formulas=escape,
+        output_encoding=options.output_encoding,
+        newline=options.newline,
+        columns=columns,
+        tidy_names=tidy,
+    )
+    data = write(rows, "\n").encode("utf-8")
+    try:
+        result = service.tidy(data, options)
+        exported = service.export(data, options)
+    except TidyError:
+        return
+    reread = [list(r.cells) for r in parse(decode(exported, _ROUNDTRIP[options.output_encoding]).text)]
+    assert replay_changes(result) == reread
+
+
+@given(messy_table, options_strategy, st.booleans())
+def test_p7_null_columns_equals_explicit_identity_plan(rows, options, tidy):
+    """P7: `columns` が None のときと、全列を元の順番で出力し、すべて比べる計画を明示したときで同じ結果になる。"""
+    data = write(rows, "\n").encode("utf-8")
+    implicit = TidyOptions(
+        trim=options.trim,
+        remove_empty=options.remove_empty,
+        dedupe=options.dedupe,
+        output_encoding=options.output_encoding,
+        newline=options.newline,
+        tidy_names=tidy,
+    )
+    try:
+        width = service.tidy(data, implicit).width
+    except TidyError:
+        return
+    explicit = TidyOptions(**{**vars(implicit), "columns": tuple(ColumnSpec(source=s) for s in range(width))})
+    a, b = service.tidy(data, implicit), service.tidy(data, explicit)
+    assert (a.changes, a.issues, a.stats, a.columns) == (b.changes, b.issues, b.stats, b.columns)
+    if a.exportable():
+        assert service.export(data, implicit) == service.export(data, explicit)
+
+
+@given(messy_table, options_strategy)
+def test_p7_default_plan_keeps_v01_output_for_ideal_header(rows, options):
+    """P7・受け入れ基準 29: ヘッダーがあるべき姿なら、列の操作をしないときの出力は v0.1 と同じ。
+
+    v0.1 の出力は、出力する行の作業用の値をそのまま書き出したもの（列の並べ直しをしない）。
+    ヘッダーをあるべき姿（列数がいちばん多く、名前が空でなく重複せず改行がない）にそろえて確かめる。
+    """
+    width = max(len(r) for r in rows)
+    header = [f"h{i}" for i in range(max(width, 1))]
+    data = write([header, *rows], "\n").encode("utf-8")
+    try:
+        exported = service.export(data, options)
+    except TidyError:
+        return
+    ctx = run_steps(parse(decode(data, None).text), options)
+    v01 = write_csv([ctx.values[i] for i in ctx.output_rows()], options.output_encoding, options.newline)
+    assert exported == v01
+
+
+header_name = st.sampled_from(["", "a", "a", "a_2", "列1", "列2", "x\ny", "x y", "\r\n", "b_2_2"])
+
+
+@given(st.lists(header_name, min_size=1, max_size=8), st.data())
+def test_p8_tidied_names_are_ideal_and_idempotent(names, data):
+    """P8: 列名を整えた結果は、空がなく、重複がなく、改行を含まない。もう一度かけても変わらない。"""
+    sources = data.draw(st.permutations(list(range(len(names)))))
+    tidied = tidy_names(names, sources)
+    assert all(name != "" for name in tidied)
+    assert len(set(tidied)) == len(tidied)
+    assert not any("\n" in name or "\r" in name for name in tidied)
+    assert tidy_names(tidied, sources) == tidied

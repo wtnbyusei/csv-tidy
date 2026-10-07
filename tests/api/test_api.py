@@ -38,7 +38,7 @@ def test_tidy_returns_result_in_designed_shape():
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/json"
     body = response.json()
-    assert set(body) == {"input", "output", "header_record", "records", "changes", "issues", "stats"}
+    assert set(body) == {"input", "output", "header_record", "width", "columns", "records", "changes", "issues", "stats"}
     assert body["input"] == {"encoding": "cp932", "auto_detected": True, "newline": "crlf", "size": len(SAMPLE)}
     assert body["output"] == {"encoding": "utf-8", "newline": "lf", "exportable": True}
     assert body["header_record"] == 0
@@ -279,3 +279,65 @@ def test_web_files_do_not_use_inner_html():
         source = path.read_text(encoding="utf-8")
         for word in (".innerHTML", ".outerHTML", ".insertAdjacentHTML", "document.write"):
             assert word not in source, f"{path.name} で {word} を使っている"
+
+
+# --- v0.2 の列の操作（設計書 15 章） --------------------------------------------------
+
+COLUMNS_SAMPLE = make_csv([["ID", "氏名", ""], ["1", "山田", "x", "追加"], ["2", "山田", "x"]])
+
+
+def test_tidy_returns_width_columns_and_header_renamed():
+    body = post("/api/tidy", COLUMNS_SAMPLE).json()
+    assert body["width"] == 4
+    assert body["columns"] == [{"source": s, "keep": True, "compare": True} for s in range(4)]
+    renamed = [c for c in body["changes"] if c["type"] == "header_renamed"]
+    assert renamed == [
+        {"type": "header_renamed", "record": 0, "column": 2, "after": "列3", "reason": "tidied"},
+        {"type": "header_renamed", "record": 0, "column": 3, "after": "列4", "reason": "tidied"},
+    ]
+    assert body["stats"]["header_names_tidied"] == 2
+
+
+def test_columns_option_is_applied_and_compare_defaults_to_keep():
+    """`compare` を書かないと `keep` と同じになる（設計書 15.1）。ID を出力せず比べないと重複になる。"""
+    columns = [
+        {"source": 1, "name": "名前"},
+        {"source": 0, "keep": False},
+        {"source": 2, "keep": True},
+        {"source": 3, "keep": False},
+    ]
+    body = post("/api/tidy", COLUMNS_SAMPLE, {"columns": columns, "tidy_names": False}).json()
+    assert body["columns"] == [
+        {"source": 1, "keep": True, "compare": True},
+        {"source": 0, "keep": False, "compare": False},
+        {"source": 2, "keep": True, "compare": True},
+        {"source": 3, "keep": False, "compare": False},
+    ]
+    assert [i["record"] for i in body["issues"] if i["code"] == "duplicate"] == [2]
+    assert [i["column"] for i in body["issues"] if i["code"] == "header_name"] == [2]
+    exported = post("/api/export", COLUMNS_SAMPLE, {"columns": columns, "tidy_names": False, "dedupe": True})
+    assert exported.content == "名前,\n山田,x\n".encode()
+
+
+@pytest.mark.parametrize("sources", [[0, 1, 2], [0, 1, 2, 2], [0, 1, 2, 4]])
+@pytest.mark.parametrize("path", ["/api/tidy", "/api/export"])
+def test_columns_that_are_not_a_permutation_are_422(path, sources):
+    """設計書 V2: 列の並べ替え（抜け・重なり・範囲外がない）でなければ 422。"""
+    response = post(path, COLUMNS_SAMPLE, {"columns": [{"source": s} for s in sources]})
+    assert response.status_code == 422
+    error = response.json()["error"]
+    assert error["code"] == "invalid_options"
+    assert error["fields"] == ["columns"]
+    assert error["width"] == 4
+
+
+@pytest.mark.parametrize(
+    "column",
+    [{"source": -1}, {"source": 0, "unknown": 1}, {"name": "a"}, {"source": 0, "keep": "maybe"}],
+)
+def test_malformed_column_is_422(column):
+    response = post("/api/tidy", b"a\n", {"columns": [column]})
+    assert response.status_code == 422
+    error = response.json()["error"]
+    assert error["code"] == "invalid_options"
+    assert any(field.startswith("columns") for field in error["fields"])

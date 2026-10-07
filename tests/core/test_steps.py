@@ -298,7 +298,7 @@ def test_formula_check_skips_removed_rows():
     assert removed_of(ctx, RemoveReason.DUPLICATE) == [2]
 
 
-# --- 処理の順番（FR-24） ---------------------------------------------------------
+# --- 処理の順番（FR-24, FR-69） ---------------------------------------------------------
 
 
 def test_default_step_order():
@@ -307,11 +307,13 @@ def test_default_step_order():
         "CharScanStep",
         "TrimStep",
         "HeaderStep",
+        "ColumnPlanStep",
         "EmptyRowStep",
         "ColumnCountStep",
         "DedupeStep",
         "FormulaStep",
         "DataRowsStep",
+        "HeaderNameStep",
         "FormulaEscapeStep",
         "EncodabilityStep",
     ]

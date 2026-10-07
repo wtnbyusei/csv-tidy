@@ -81,9 +81,14 @@ export function formatSize(bytes) {
 export function replayChanges(result) {
   const after = result.records.map((record) => record.cells.slice());
   for (const change of result.changes) {
-    // 削除以外の変更（空白を取り除いた、数式を無害化した）は、記録された変更後の値に差し替える
+    // 削除以外の変更（空白を取り除いた、列名を変えた、数式を無害化した）は、記録された変更後の値に差し替える。
+    // 行の長さを超える位置（ヘッダーにない列の名前）は、その位置まで空のセルを足してから入れる（設計書 15.5）
     if (change.type === "row_removed") after[change.record] = null;
-    else after[change.record][change.column] = change.after;
+    else {
+      const row = after[change.record];
+      while (row.length < change.column) row.push("");
+      row[change.column] = change.after;
+    }
   }
   return after;
 }
@@ -107,6 +112,8 @@ export function buildModel(result) {
       removed.set(change.record, change);
       continue;
     }
+    // 列名の変更（v0.2）は値だけ右の表に反映する。差分での示し方は作業18 で加える
+    if (change.type === "header_renamed") continue;
     const byRecord = change.type === "formula_escaped" ? escaped : trimmed;
     let columns = byRecord.get(change.record);
     if (!columns) byRecord.set(change.record, (columns = new Map()));

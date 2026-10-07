@@ -285,6 +285,28 @@ def test_formulas_are_escaped_by_default_and_can_be_turned_off(page: Page):
     assert info.value.path().read_bytes().decode() == "名前,メモ\n=1+1,-5\n＝SUM(A1),ok\n"
 
 
+def test_column_without_header_is_named_and_matches_download(page: Page):
+    """受け入れ基準 26・設計書 15.5: ヘッダーにない列は名前を付けて残し、右の表とダウンロードが一致する。
+
+    初期状態の計画では列名の変更は列の順に記録されるので、空のセルを足す手順（列の並べ替えで起きる）は
+    作業18 の列の一覧のテストで確かめる。
+    """
+    data = "名前,年齢\n山田,30,東京\n鈴木,41\n".encode()
+    open_file(page, name="wide.csv", data=data)
+    wait_result(page)
+    page.get_by_label("全行").check()
+
+    shown = [
+        row.locator("td:not(.ln):not(.missing)").all_text_contents()
+        for row in page.get_by_test_id("diff-after").locator("tr[data-record]:not(.placeholder)").all()
+    ]
+    with page.expect_download() as info:
+        page.get_by_role("button", name="ダウンロード").click()
+    exported = list(csv.reader(io.StringIO(info.value.path().read_bytes().decode("utf-8"), newline="")))
+    assert exported == [["名前", "年齢", "列3"], ["山田", "30", "東京"], ["鈴木", "41"]]
+    assert shown == exported
+
+
 # ---- 先頭の空行（受け入れ基準 20） ----
 
 
