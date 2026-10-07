@@ -61,6 +61,21 @@
       </label>
     </section>
 
+    <section class="section needs-file" id="columns-section">
+      <h2>列（出力する順番・名前）</h2>
+      <div class="columns" id="columns" data-testid="columns"></div>
+      <div class="hint" id="columns-empty">ファイルを読み込むと、列の一覧が出ます。</div>
+      <div class="hint note" id="columns-notice" role="status" hidden></div>
+      <label class="check">
+        <input type="checkbox" id="opt-tidy-names" checked>
+        <span>列名を整える<br><span class="hint">空・重複・改行のある列名を直す</span></span>
+      </label>
+      <div class="col-actions">
+        <button type="button" class="button" id="columns-keep-all">すべて残す</button>
+        <button type="button" class="button" id="columns-reset">最初に戻す</button>
+      </div>
+    </section>
+
     <section class="section needs-file">
       <h2>出力</h2>
       <div class="field">

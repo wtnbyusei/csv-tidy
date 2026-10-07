@@ -64,6 +64,21 @@ def manual_check() -> list[list[str]]:
     ]
 
 
+def columns() -> list[list[str]]:
+    """v0.2 の列の操作の確認用（テスト計画書 12.4、受け入れ基準 25〜27）。
+
+    画面の見本（07）と同じ列に、6 列目のある行、ID だけが違う重複、列数の足りない行を含む。
+    """
+    return [
+        ["ID", "名前", "年齢", "住所", "電話"],
+        ["1", "山田太郎", "30", "東京都", "03-1111-2222"],
+        ["2", "佐藤花子", "25", "大阪府", "06-3333-4444", "VIP"],  # 6 列目（ヘッダーなし）
+        ["3", "山田太郎", "30", "東京都", "03-1111-2222"],  # ID だけが 2 行目と違う
+        ["4", "鈴木一郎", "41"],  # 列数が足りない
+        ["5", "田中次郎", "28", "福岡県", "092-555-6666"],
+    ]
+
+
 def to_csv(rows: list[list[str]], newline: str) -> str:
     def cell(value: str) -> str:
         if any(c in value for c in ',"\r\n'):
@@ -134,6 +149,7 @@ def main() -> None:
         "emoji.csv": to_csv([["名前", "メモ"], ["山田😀", "A—B"], ["佐藤", "ok"]], "\n").encode(),
         "not_csv.xlsx": minimal_xlsx(),
         "manual_check.csv": to_csv(manual_check(), "\r\n").encode("utf-8-sig"),
+        "columns.csv": to_csv(columns(), "\n").encode(),
     }
     for name, content in files.items():
         (HERE / name).write_bytes(content)

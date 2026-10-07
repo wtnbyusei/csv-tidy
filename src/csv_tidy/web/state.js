@@ -22,6 +22,8 @@ export function defaultOptions() {
     escape_formulas: true,
     output_encoding: "utf-8",
     newline: "lf",
+    columns: null, // 列の一覧の最終形（v0.2、設計書 15.1）。null なら読み込んだときの状態
+    tidy_names: true, // 列名を整える（FR-66）
   };
 }
 
@@ -39,6 +41,7 @@ export const state = {
   error: null,
   exporting: false,
   exportError: null,
+  columnsNotice: null, // 列の設定を最初に戻したときの知らせ
   view: newView(),
 };
 
@@ -107,13 +110,17 @@ export function buildModel(result) {
   const removed = new Map(); // レコード → 削除の記録
   const trimmed = new Map(); // レコード → Map（空白を取り除いた列 → 取り除いた後の値）
   const escaped = new Map(); // レコード → Map（数式を無害化した列 → 無害化した後の値）（FR-49）
+  const renamed = new Map(); // 列名を変えた列（元の何列目か）→ 理由（"renamed" か "tidied"。両方なら "tidied"）
   for (const change of result.changes) {
     if (change.type === "row_removed") {
       removed.set(change.record, change);
       continue;
     }
-    // 列名の変更（v0.2）は値だけ右の表に反映する。差分での示し方は作業18 で加える
-    if (change.type === "header_renamed") continue;
+    // 列名の変更（v0.2）は、右の表の見出しで示す
+    if (change.type === "header_renamed") {
+      if (change.reason === "tidied" || !renamed.has(change.column)) renamed.set(change.column, change.reason);
+      continue;
+    }
     const byRecord = change.type === "formula_escaped" ? escaped : trimmed;
     let columns = byRecord.get(change.record);
     if (!columns) byRecord.set(change.record, (columns = new Map()));
@@ -128,7 +135,9 @@ export function buildModel(result) {
     list.push(issue);
   }
 
-  // 出力するファイルでの行番号。セルの中の改行はそのまま出力されるので、その分だけ進める
+  // 出力するファイルでの行番号。セルの中の改行はそのまま出力されるので、その分だけ進める。
+  // 出力しない列のセルは出力されないので数えない
+  const keptSources = result.columns.filter((c) => c.keep).map((c) => c.source);
   const outLine = new Array(count).fill(null);
   let line = 1;
   let width = 0;
@@ -139,17 +148,24 @@ export function buildModel(result) {
     outLine[i] = line;
     line += 1;
     if (record.line_end > record.line_start) {
-      for (const value of after[i]) line += (value.match(NEWLINES) || []).length;
+      for (const c of keptSources) line += ((after[i][c] ?? "").match(NEWLINES) || []).length;
     }
   }
 
   // 変更か課題のある行（「変更 k / N」の対象）
   const changed = [];
   for (let i = 0; i < count; i++) {
-    if (removed.has(i) || trimmed.has(i) || escaped.has(i) || issuesByRecord.has(i)) changed.push(i);
+    const headerRenamed = i === result.header_record && renamed.size > 0;
+    if (removed.has(i) || trimmed.has(i) || escaped.has(i) || issuesByRecord.has(i) || headerRenamed) changed.push(i);
   }
 
   const header = records[result.header_record];
+  // 元の列名（空白を取り除いた後、名前を変える前の値）。列の一覧と、右の表の「← 元の名前」に使う
+  const headerTrimmed = trimmed.get(result.header_record);
+  const originalNames = [];
+  for (let c = 0; c < result.width; c++) {
+    originalNames.push(headerTrimmed && headerTrimmed.has(c) ? headerTrimmed.get(c) : (header.cells[c] ?? ""));
+  }
   return {
     result,
     records,
@@ -162,6 +178,10 @@ export function buildModel(result) {
     changed,
     width,
     headerWidth: header.cells.length,
+    plan: result.columns, // 列の計画（設計書 15.4）
+    kept: keptSources, // 右の表に出す列（元の何列目か）を出力の順に
+    renamed,
+    originalNames,
     headerBefore: header.cells,
     headerAfter: after[result.header_record],
     changesView: changesOnlyItems(changed, count),
@@ -221,6 +241,24 @@ export function changeIndexAtOrAfter(model, record) {
 /** 元のファイルでの行番号の表示（複数行にまたがるときは「812〜813」）。 */
 export function lineLabel(record) {
   return record.line_end > record.line_start ? `${record.line_start}〜${record.line_end}` : String(record.line_start);
+}
+
+/**
+ * 列の一覧の行（画面設計書 7.1）。設定の columns が null なら、読み込んだときの状態（全列を元の順番で出力し、
+ * すべて比べる）にする。
+ */
+export function columnEntries(model, columns) {
+  const list = columns ?? model.originalNames.map((_, source) => ({ source, name: null, keep: true, compare: true }));
+  return list.map((column) => ({
+    ...column,
+    original: model.originalNames[column.source] ?? "",
+    headerless: column.source >= model.headerWidth,
+  }));
+}
+
+/** 設定の columns を、一覧の行から作る（画面だけで使う項目を除く）。 */
+export function toColumnsOption(entries) {
+  return entries.map(({ source, name, keep, compare }) => ({ source, name, keep, compare }));
 }
 
 /** 列の名前（ヘッダーの値）。空やヘッダーにない列は「N 列目」。 */
