@@ -1,8 +1,8 @@
 // 差分表示（画面設計書 4.3）。左に変更前、中央に「変更」の帯、右に変更後を、
 // CSV のレコード単位で行をそろえて並べる（FR-42, FR-43）。1 ページ 100 行だけを作る。
 
-import { PAGE_SIZE, itemAt, itemCount, lineLabel } from "../state.js";
-import { el, replace } from "./dom.js";
+import { PAGE_SIZE, groupRows, itemAt, itemCount, lineLabel } from "../state.js";
+import { el, helpButton, replace } from "./dom.js";
 
 // 取り除く空白の種類と、表示に使う印のクラス（FR-20）
 const TRIM_MARKS = { " ": "ws", "　": "ws full", "\t": "ws tab", " ": "ws nbsp" };
@@ -14,7 +14,8 @@ const SPECIAL_TEST = /[​‌‍⁠﻿\x01-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\r\n]/;
 const SPECIAL_NAMES = { "​": "ZWSP", "‌": "ZWNJ", "‍": "ZWJ", "⁠": "WJ", "﻿": "BOM", "\x7f": "DEL" };
 
 /**
- * @param {object} handlers onMode(mode)、onMove(step)、onPage(page)
+ * @param {object} handlers onMode(mode)、onMove(step)、onPage(page)、
+ *   onGroup(origin): 重複の組の強調を切り替える、onJump(record): 行へ移動する
  */
 export function renderDiff(container, model, view, handlers) {
   const total = itemCount(model, view.mode);
@@ -26,6 +27,7 @@ export function renderDiff(container, model, view, handlers) {
   const left = sideTable(model, "before");
   const gutter = el("table", {}, el("tr", {}, el("th", {}, "この行で起きたこと")));
   const right = sideTable(model, "after");
+  const shown = new Set(); // このページに出している行
   for (let i = start; i < end; i++) {
     const item = itemAt(model, view.mode, i);
     if (typeof item === "object") {
@@ -34,10 +36,13 @@ export function renderDiff(container, model, view, handlers) {
       right.append(gapRow(model.kept.length, item.gap));
       continue;
     }
-    const focus = item === view.focus ? " focus" : "";
-    left.append(beforeRow(model, item, focus));
-    gutter.append(gutterRow(model, item, focus));
-    right.append(afterRow(model, item, focus));
+    shown.add(item);
+    // 移動してきた行（青い枠）と、強調している重複の組（濃い青の背景）
+    let focus = item === view.focus ? " focus" : "";
+    if (view.group !== null && model.groupOf.get(item) === view.group) focus += " grp";
+    left.append(groupRow(model, beforeRow(model, item, focus), item, handlers, true));
+    gutter.append(groupRow(model, gutterRow(model, item, focus), item, handlers, false));
+    right.append(groupRow(model, afterRow(model, item, focus), item, handlers, false));
   }
   if (total === 0) {
     const none = (columns) => el("tr", { className: "gap" }, el("td", { colSpan: columns + 1 }, "変更はありません"));
@@ -50,18 +55,94 @@ export function renderDiff(container, model, view, handlers) {
   const rightSide = el("div", { className: "side" }, right);
   syncScroll(leftSide, rightSide);
 
-  replace(
-    container,
-    toolbar(model, view, handlers),
-    el(
+  const diff = el(
       "div",
       { className: "diff3", dataset: { testid: "diff" } },
       el("div", { dataset: { testid: "diff-before" } }, el("h3", {}, "変更前（元のファイルの行番号）"), leftSide),
       el("div", { className: "gutter", dataset: { testid: "diff-gutter" } }, el("h3", {}, "変更"), gutter),
       el("div", { dataset: { testid: "diff-after" } }, el("h3", {}, "変更後（出力するファイルの行番号）"), rightSide),
-    ),
+  );
+  // 重複の組の行を押すと、その組を強調する（もう一度押すと消す。画面設計書 4.3）。
+  // 表の外を押したときに消す処理は app.js にある
+  diff.addEventListener("click", (event) => {
+    const row = event.target.closest("tr[data-group]");
+    if (!row) return;
+    event.stopPropagation();
+    handlers.onGroup(Number(row.dataset.group));
+  });
+
+  replace(
+    container,
+    toolbar(model, view, handlers),
+    groupBar(model, view, shown, handlers),
+    diff,
     pages > 1 ? pageNav(page, pages, handlers) : null,
   );
+  requestAnimationFrame(() => fitGutter(gutter));
+}
+
+/** 重複の組の行に、組の番号を付ける。左の表の行は Tab キーで選び、Enter キーで強調を切り替えられる。 */
+function groupRow(model, row, index, handlers, focusable) {
+  const origin = model.groupOf.get(index);
+  if (origin === undefined) return row;
+  row.dataset.group = String(origin);
+  if (focusable) {
+    row.tabIndex = 0;
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      handlers.onGroup(origin);
+    });
+  }
+  return row;
+}
+
+/** 強調している組の行がこのページにないときに、組の行の一覧と移動のリンクを出す（画面設計書 4.3）。 */
+function groupBar(model, view, shown, handlers) {
+  if (view.group === null || !model.groups.has(view.group)) return null;
+  const rows = groupRows(model, view.group);
+  if (rows.every((record) => shown.has(record))) return null;
+  const bar = el("div", { className: "group-bar", dataset: { testid: "group-bar" } }, "同じ組の行: ");
+  rows.forEach((record, i) => {
+    if (i > 0) bar.append("・");
+    bar.append(
+      el(
+        "button",
+        {
+          type: "button",
+          className: "link",
+          on: {
+            click: (event) => {
+              event.stopPropagation(); // 組の強調を消さない
+              handlers.onJump(record);
+            },
+          },
+        },
+        lineLabel(model.records[record]),
+      ),
+    );
+  });
+  bar.append(" 行目");
+  return bar;
+}
+
+/**
+ * 帯の幅（180px）に収まらないバッジを隠し、「他 N」と数で示す（画面設計書 4.3）。
+ * すべての内容は、マウスを重ねたときの説明（title）で読める。
+ */
+function fitGutter(table) {
+  for (const td of table.querySelectorAll("td")) {
+    if (td.scrollWidth <= td.clientWidth) continue;
+    const notes = [...td.querySelectorAll(".badge, .note-text")];
+    const more = el("span", { className: "more" });
+    td.append(more);
+    let hidden = 0;
+    while (td.scrollWidth > td.clientWidth && hidden < notes.length - 1) {
+      notes[notes.length - 1 - hidden].hidden = true;
+      hidden += 1;
+      more.textContent = `他 ${hidden}`;
+    }
+  }
 }
 
 function toolbar(model, view, handlers) {
@@ -91,12 +172,12 @@ function toolbar(model, view, handlers) {
       "div",
       { className: "legend" },
       el("span", {}, el("span", { className: "swatch trimmed" }), "空白を取り除いたセル"),
-      el("span", {}, el("span", { className: "swatch escaped" }), "数式を無害化したセル"),
-      el("span", {}, el("span", { className: "swatch tidied" }), "列名を整えた列"),
+      el("span", {}, el("span", { className: "swatch escaped" }), "数式を無害化したセル", helpButton("formula_escape")),
+      el("span", {}, el("span", { className: "swatch tidied" }), "列名を整えた列", helpButton("tidy_names")),
       el("span", {}, el("span", { className: "swatch removed" }), "削除した行"),
-      el("span", {}, el("span", { className: "swatch missing" }), "セルなし"),
+      el("span", {}, el("span", { className: "swatch missing" }), "セルなし", helpButton("missing_cell")),
       el("span", {}, el("span", { className: "ws" }), "半角 ", el("span", { className: "ws full" }), "全角の取り除いた空白"),
-      el("span", {}, el("span", { className: "mark" }, "ZWSP"), " 見えない文字"),
+      el("span", {}, el("span", { className: "mark" }, "ZWSP"), " 見えない文字", helpButton("invisible_char")),
     ),
   );
 }
@@ -156,9 +237,15 @@ function gapRow(columns, count) {
   return el("tr", { className: "gap" }, el("td", { colSpan: columns + 1 }, `… 変更のない ${count} 行を省略 …`));
 }
 
+/**
+ * 行の見た目。削除した行は薄い赤、削除していない重複は薄い青と濃い青の線、重複の元の行は
+ * 薄い青の線だけにする（画面設計書 4.3）。
+ */
 function rowClass(model, index, focus) {
-  let name = model.removed.has(index) ? "removed" : "";
-  if ((model.issuesByRecord.get(index) || []).some((issue) => issue.code === "duplicate")) name += " dup";
+  let name = "";
+  if (model.removed.has(index)) name = "removed";
+  else if (model.groups.has(index)) name = "dup-origin";
+  else if (model.groupOf.has(index)) name = "dup";
   return name + focus;
 }
 
@@ -305,16 +392,27 @@ function specialMark(char) {
 
 /** 「変更」の帯の 1 行。その行で起きたことを矢印とバッジで書く（FR-43）。 */
 function gutterRow(model, index, focus) {
+  // 大事なものから並べる: 削除 → 重複 → エラー → 警告 → 情報 → 説明（画面設計書 4.3）
+  const DELETE = 0;
+  const DUPLICATE = 1;
+  const ERROR = 2;
+  const WARNING = 3;
+  const INFO = 4;
+  const NOTE = 5;
   const notes = [];
-  const add = (className, text) => notes.push({ className, text });
+  const add = (order, className, text) => notes.push({ order, className, text });
 
   const isHeader = index === model.result.header_record;
-  if (isHeader) add("note-text", "ヘッダー行");
   const removed = model.removed.get(index);
   if (removed) {
-    if (removed.reason === "empty") add("badge", "削除: 空行");
-    else if (removed.reason === "leading_blank") add("badge", "削除: 先頭の空行");
-    else add("badge", `削除: 重複（${model.records[removed.duplicate_of].line_start} 行目と同じ）`);
+    if (removed.reason === "empty") add(DELETE, "badge", "削除: 空行");
+    else if (removed.reason === "leading_blank") add(DELETE, "badge", "削除: 先頭の空行");
+    else add(DELETE, "badge", `削除: 重複（${model.records[removed.duplicate_of].line_start} 行目と同じ）`);
+  }
+  const members = model.groups.get(index);
+  if (members) {
+    const lines = members.map((record) => model.records[record].line_start).join("・");
+    add(DUPLICATE, "badge origin", `重複の元（${lines} 行目）`);
   }
 
   const issues = model.issuesByRecord.get(index) || [];
@@ -329,49 +427,51 @@ function gutterRow(model, index, focus) {
     const notOutput = ofCode.every((i) => i.column !== null && !kept.has(i.column)) ? "（出力しない列）" : "";
     switch (issue.code) {
       case "column_count":
-        add("badge warn", `列数 ${record.cells.length} / ${model.headerWidth}`);
+        add(WARNING, "badge warn", `列数 ${record.cells.length} / ${model.headerWidth}`);
         break;
       case "duplicate":
-        add("badge dup", `重複: ${model.records[issue.related_record].line_start} 行目と同じ`);
+        add(DUPLICATE, "badge dup", `重複: ${model.records[issue.related_record].line_start} 行目と同じ`);
         break;
       case "invisible_char":
-        add("badge warn", `見えない文字${notOutput}`);
+        add(WARNING, "badge warn", `見えない文字${notOutput}`);
         break;
       case "control_char":
-        add("badge warn", `制御文字${notOutput}`);
+        add(WARNING, "badge warn", `制御文字${notOutput}`);
         break;
       case "formula_like":
-        add("badge warn", `数式になる値${notOutput}`);
+        add(WARNING, "badge warn", `数式になる値${notOutput}`);
         break;
       case "header_name":
-        add("badge warn", "列名の警告");
+        add(WARNING, "badge warn", "列名の警告");
         break;
       case "unencodable":
-        add("badge", "CP932 で表せない");
+        add(ERROR, "badge", "CP932 で表せない");
         break;
       case "multiline_cell":
-        add("badge info", `複数行のセル${notOutput}`);
+        add(INFO, "badge info", `複数行のセル${notOutput}`);
         break;
       case "leading_blank":
-        add("badge info", "先頭の空行を飛ばした");
+        add(INFO, "badge info", "先頭の空行を飛ばした");
         break;
       default:
-        add("badge info", issue.detail);
+        add(INFO, "badge info", issue.detail);
     }
   }
 
-  // 帯の幅（180px）に収まらないときに大事なバッジが隠れないよう、空白の説明は最後に置く
   const escaped = model.escaped.get(index);
-  if (escaped) add("note-text", `数式を無害化（${escaped.size} セル）`);
+  if (escaped) add(NOTE, "note-text", `数式を無害化（${escaped.size} セル）`);
   const trimmed = model.trimmed.get(index);
-  if (trimmed) add("note-text", `空白を取り除いた（${trimmed.size} セル）`);
+  if (trimmed) add(NOTE, "note-text", `空白を取り除いた（${trimmed.size} セル）`);
   if (isHeader) {
     const reasons = [...model.renamed.values()];
     const renamedCount = reasons.filter((r) => r === "renamed").length;
     const tidiedCount = reasons.length - renamedCount;
-    if (renamedCount) add("note-text", `列名を変えた（${renamedCount} 列）`);
-    if (tidiedCount) add("note-text", `列名を整えた（${tidiedCount} 列）`);
+    if (renamedCount) add(NOTE, "note-text", `列名を変えた（${renamedCount} 列）`);
+    if (tidiedCount) add(NOTE, "note-text", `列名を整えた（${tidiedCount} 列）`);
   }
+  notes.sort((a, b) => a.order - b.order); // 同じ順位の中は、加えた順のまま（安定な並べ替え）
+  // 「ヘッダー行」はどの行かを示す見出しなので、いつも先頭に置く
+  if (isHeader) notes.unshift({ className: "note-text", text: "ヘッダー行" });
 
   const td = el("td", { title: notes.map((n) => n.text).join("／") });
   if (notes.length) td.append(el("span", { className: "arrow" }, "→"));

@@ -51,6 +51,7 @@ export function newView() {
     mode: "changes", // "changes"（変更箇所のみ）または "all"（全行）
     page: 0,
     focus: null, // 強調している行（レコードの番号）
+    group: null, // 強調している重複の組（重複の元の行のレコードの番号。画面設計書 4.3）
     cursor: null, // 「変更 k / N」の k - 1
     shown: {}, // 課題の種類ごとに表示している件数
   };
@@ -127,6 +128,24 @@ export function buildModel(result) {
     columns.set(change.column, change.after);
   }
 
+  // 重複の組（画面設計書 4.3、設計書 V5）: 重複の元の行 → 同じ組の行（元の行を除く）。
+  // 削除していない重複は課題の related_record から、削除した重複は duplicate_of から作る
+  const groups = new Map();
+  const groupOf = new Map(); // 行 → その行の組（重複の元の行）
+  const addToGroup = (origin, member) => {
+    if (!groups.has(origin)) groups.set(origin, []);
+    groups.get(origin).push(member);
+    groupOf.set(origin, origin);
+    groupOf.set(member, origin);
+  };
+  for (const change of removed.values()) {
+    if (change.reason === "duplicate") addToGroup(change.duplicate_of, change.record);
+  }
+  for (const issue of result.issues) {
+    if (issue.code === "duplicate") addToGroup(issue.related_record, issue.record);
+  }
+  for (const members of groups.values()) members.sort((a, b) => a - b);
+
   const issuesByRecord = new Map();
   for (const issue of result.issues) {
     if (issue.record === null) continue;
@@ -156,7 +175,10 @@ export function buildModel(result) {
   const changed = [];
   for (let i = 0; i < count; i++) {
     const headerRenamed = i === result.header_record && renamed.size > 0;
-    if (removed.has(i) || trimmed.has(i) || escaped.has(i) || issuesByRecord.has(i) || headerRenamed) changed.push(i);
+    // 重複の元の行も含める（比べる相手が「変更箇所のみ」で省略されないように。画面設計書 4.3）
+    if (removed.has(i) || trimmed.has(i) || escaped.has(i) || issuesByRecord.has(i) || headerRenamed || groups.has(i)) {
+      changed.push(i);
+    }
   }
 
   const header = records[result.header_record];
@@ -181,6 +203,8 @@ export function buildModel(result) {
     plan: result.columns, // 列の計画（設計書 15.4）
     kept: keptSources, // 右の表に出す列（元の何列目か）を出力の順に
     renamed,
+    groups,
+    groupOf,
     originalNames,
     headerBefore: header.cells,
     headerAfter: after[result.header_record],
@@ -236,6 +260,11 @@ export function changeIndexAtOrAfter(model, record) {
     else high = mid;
   }
   return low;
+}
+
+/** 重複の組の行（重複の元の行を先頭に、元のファイルの順）。 */
+export function groupRows(model, origin) {
+  return [origin, ...(model.groups.get(origin) || [])];
 }
 
 /** 元のファイルでの行番号の表示（複数行にまたがるときは「812〜813」）。 */

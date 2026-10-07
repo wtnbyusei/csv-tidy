@@ -1,7 +1,7 @@
 // 列の一覧（v0.2、画面設計書 7.1 の B改）。出力するか・列名・重複の判定に使うかを列ごとに設定し、
 // つまみで順番を入れ替える。一覧そのものが設定 columns の最終形を表す（画面設計書 7.2）。
 
-import { el, replace } from "./dom.js";
+import { el, helpButton, replace } from "./dom.js";
 
 /**
  * @param {HTMLElement} container 一覧を入れる要素
@@ -11,11 +11,11 @@ import { el, replace } from "./dom.js";
 export function renderColumns(container, entries, handlers) {
   const head = el(
     "div",
-    { className: "col-head", ariaHidden: "true" },
+    { className: "col-head" },
     el("span", {}),
-    el("span", { className: "c" }, "出力"),
-    el("span", {}, "列名"),
-    el("span", { className: "c" }, "重複の判定"),
+    el("span", { className: "c" }, "出力", helpButton("not_output")),
+    el("span", {}, "列名", helpButton("headerless")),
+    el("span", { className: "c" }, "重複の判定", helpButton("compare")),
   );
   const rows = entries.map((entry, i) => columnRow(entry, i, entries.length, handlers));
   replace(container, head, ...rows);

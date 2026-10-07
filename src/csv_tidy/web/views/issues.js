@@ -1,7 +1,7 @@
 // 課題の一覧（画面設計書 4.4）。レベルごとにまとめ、その中を課題の種類ごとに分ける。
 
 import { ISSUES_FIRST, columnName, lineLabel } from "../state.js";
-import { el, replace } from "./dom.js";
+import { el, helpButton, replace } from "./dom.js";
 
 const LEVELS = [
   { level: "error", title: "エラー（ダウンロードできません）" },
@@ -21,6 +21,18 @@ const KINDS = {
   multiline_cell: "複数行にまたがるセル",
   leading_blank: "先頭の空行",
   no_data_rows: "データ行がない",
+};
+
+/** 課題の種類ごとの、用語の説明（help.js のキー）。 */
+const KIND_HELP = {
+  unencodable: "cp932",
+  column_count: "column_count",
+  invisible_char: "invisible_char",
+  control_char: "control_char",
+  formula_like: "formula_like",
+  header_name: "tidy_names",
+  duplicate: "duplicate",
+  multiline_cell: "multiline_cell",
 };
 
 /** 「さらに表示」で 1 回に増やす件数。 */
@@ -72,7 +84,8 @@ function renderKind(model, view, options, handlers, code, list) {
 
   const shown = view.shown[code] ?? ISSUES_FIRST;
   const items = list.slice(0, shown).map((issue) => el("li", {}, describe(model, issue, handlers)));
-  const nodes = [el("div", { className: "issue-head issue-kind" }, heading), el("ul", { dataset: { code } }, items)];
+  const help = KIND_HELP[code] ? helpButton(KIND_HELP[code]) : null;
+  const nodes = [el("div", { className: "issue-head issue-kind" }, heading, help), el("ul", { dataset: { code } }, items)];
 
   const rest = list.length - shown;
   if (rest > 0) {

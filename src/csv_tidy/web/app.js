@@ -16,7 +16,7 @@ import {
 } from "./state.js";
 import { renderColumns } from "./views/columns.js";
 import { renderDiff } from "./views/diff.js";
-import { el, replace } from "./views/dom.js";
+import { closeHelp, el, helpButton, replace } from "./views/dom.js";
 import { renderIssues } from "./views/issues.js";
 import { renderSummary } from "./views/summary.js";
 
@@ -257,6 +257,7 @@ function canDownload() {
 // ---- 表示 ----
 
 function render() {
+  closeHelp(); // 画面を作り直すので、開いている用語の説明を閉じる
   renderSidebar();
   renderMain();
 }
@@ -278,7 +279,10 @@ function renderSidebar() {
 
   for (const section of document.querySelectorAll(".needs-file")) {
     section.classList.toggle("disabled", !hasFile);
-    for (const control of section.querySelectorAll("input, select, button:not(#download)")) control.disabled = !hasFile;
+    // 用語の説明（「？」）は、ファイルを選ぶ前でも読めるようにする
+    for (const control of section.querySelectorAll("input, select, button:not(#download):not(.help)")) {
+      control.disabled = !hasFile;
+    }
   }
   renderColumnList();
 
@@ -415,7 +419,21 @@ const diffHandlers = {
     renderResult();
     ui.panelDiff.scrollIntoView({ block: "start" });
   },
+  /** 重複の組の強調を切り替える。強調中の組の行をもう一度押すと消す（画面設計書 4.3）。 */
+  onGroup(origin) {
+    state.view.group = state.view.group === origin ? null : origin;
+    renderResult();
+  },
+  onJump: focusRecord,
 };
+
+// 重複の組の行以外（重複ではない行や表の外）を押すと、組の強調を消す（画面設計書 4.3）。
+// 組の行を押したときは、差分表示の側でこのイベントを止めている
+document.addEventListener("click", () => {
+  if (state.status !== "ready" || state.view.group === null) return;
+  state.view.group = null;
+  renderResult();
+});
 
 const issueHandlers = {
   onJump: focusRecord,
@@ -468,5 +486,8 @@ function describeError(error) {
       return { title: "処理できませんでした", checks: ["画面を読み込み直して、もう一度試す"] };
   }
 }
+
+// 静的な画面（設定欄）に、用語の説明の「？」を置く
+for (const slot of document.querySelectorAll("[data-help-slot]")) slot.replaceWith(helpButton(slot.dataset.helpSlot));
 
 render();

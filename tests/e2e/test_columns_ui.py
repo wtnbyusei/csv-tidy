@@ -135,7 +135,7 @@ def test_header_names_are_tidied_and_warned_when_off(page: Page):
     expect(page.get_by_test_id("diff-gutter")).to_contain_text("列名を整えた（3 列）")
     assert download(page)[0] == ["名前", "列2", "名前_2", "住所 （番地）"]
 
-    page.get_by_label("列名を整える").uncheck()
+    page.get_by_role("checkbox", name="列名を整える").uncheck()
     wait_result(page)
     expect(page.get_by_test_id("counts")).not_to_contain_text("列名を整えた")
     assert download(page)[0] == ["名前", "", "名前", "住所\n（番地）"]

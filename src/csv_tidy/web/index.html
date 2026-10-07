@@ -35,7 +35,7 @@
     <section class="section needs-file">
       <h2>読み込み</h2>
       <div class="field">
-        <label for="input-encoding">文字コード</label>
+        <div class="field-head"><label for="input-encoding">文字コード</label><span data-help-slot="bom"></span></div>
         <select id="input-encoding" class="select">
           <option value="" data-label="自動判定">自動判定</option>
           <option value="utf-8-sig">UTF-8（BOM 付き）</option>
@@ -47,18 +47,20 @@
 
     <section class="section needs-file">
       <h2>整形</h2>
-      <label class="check">
+      <div class="check">
         <input type="checkbox" id="opt-trim" checked>
-        <span>セル前後の空白を取り除く<br><span class="hint">半角・全角スペース、タブ、NBSP</span></span>
-      </label>
+        <label for="opt-trim">セル前後の空白を取り除く<br><span class="hint">半角・全角スペース、タブ、NBSP</span></label>
+        <span data-help-slot="nbsp"></span>
+      </div>
       <label class="check">
         <input type="checkbox" id="opt-remove-empty" checked>
         <span>空行を削除する</span>
       </label>
-      <label class="check">
+      <div class="check">
         <input type="checkbox" id="opt-dedupe">
-        <span>重複行を削除する<span class="hint note" id="dedupe-note" hidden></span></span>
-      </label>
+        <label for="opt-dedupe">重複行を削除する<span class="hint note" id="dedupe-note" hidden></span></label>
+        <span data-help-slot="duplicate"></span>
+      </div>
     </section>
 
     <section class="section needs-file" id="columns-section">
@@ -66,10 +68,11 @@
       <div class="columns" id="columns" data-testid="columns"></div>
       <div class="hint" id="columns-empty">ファイルを読み込むと、列の一覧が出ます。</div>
       <div class="hint note" id="columns-notice" role="status" hidden></div>
-      <label class="check">
+      <div class="check">
         <input type="checkbox" id="opt-tidy-names" checked>
-        <span>列名を整える<br><span class="hint">空・重複・改行のある列名を直す</span></span>
-      </label>
+        <label for="opt-tidy-names">列名を整える<br><span class="hint">空・重複・改行のある列名を直す</span></label>
+        <span data-help-slot="tidy_names"></span>
+      </div>
       <div class="col-actions">
         <button type="button" class="button" id="columns-keep-all">すべて残す</button>
         <button type="button" class="button" id="columns-reset">最初に戻す</button>
@@ -79,19 +82,20 @@
     <section class="section needs-file">
       <h2>出力</h2>
       <div class="field">
-        <label for="output-encoding">文字コード</label>
+        <div class="field-head"><label for="output-encoding">文字コード</label><span data-help-slot="cp932"></span></div>
         <select id="output-encoding" class="select">
           <option value="utf-8">UTF-8</option>
           <option value="utf-8-bom">UTF-8（BOM 付き・Excel 向け）</option>
           <option value="cp932">CP932</option>
         </select>
       </div>
-      <label class="check">
+      <div class="check">
         <input type="checkbox" id="opt-escape-formulas" checked>
-        <span>数式として扱われる値を無害化する<br><span class="hint">CSV インジェクション対策。先頭が = + - @ などの値の前に ' を付けます（数値は除く）</span></span>
-      </label>
+        <label for="opt-escape-formulas">数式として扱われる値を無害化する<br><span class="hint">CSV インジェクション対策。先頭が = + - @ などの値の前に ' を付けます（数値は除く）</span></label>
+        <span data-help-slot="formula_escape"></span>
+      </div>
       <fieldset class="field radio">
-        <legend>改行コード</legend>
+        <legend>改行コード<span data-help-slot="newline"></span></legend>
         <label><input type="radio" name="newline" value="lf" checked> LF</label>
         <label><input type="radio" name="newline" value="crlf"> CRLF（Windows）</label>
       </fieldset>
