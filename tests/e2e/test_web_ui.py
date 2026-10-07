@@ -68,6 +68,8 @@ def test_main_flow_shows_summary_diff_and_issues(page: Page, fixture_path):
 
     # 課題タブから差分の行へ移動する（画面設計書 4.4）
     page.get_by_role("tab", name="課題（3）").click()
+    # すべての列を比べたときは、比べた列を「すべての列」と短く書く（作業19 の用語の見直し）
+    expect(page.locator('ul[data-code="duplicate"]')).to_contain_text("7 行目: 2 行目と同じ（比べた列: すべての列）")
     page.get_by_role("button", name="5 行目: 列数 3（ヘッダーは 4） → 差分で見る").click()
     expect(page.get_by_role("tab", name="差分")).to_have_attribute("aria-selected", "true")
     expect(page.locator('[data-testid="diff-before"] tr.focus td.ln')).to_have_text("5")

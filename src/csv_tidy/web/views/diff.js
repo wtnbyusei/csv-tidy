@@ -133,7 +133,13 @@ function groupBar(model, view, shown, handlers) {
 function fitGutter(table) {
   for (const td of table.querySelectorAll("td")) {
     if (td.scrollWidth <= td.clientWidth) continue;
-    const notes = [...td.querySelectorAll(".badge, .note-text")];
+    // 行の見出し（「ヘッダー行」）は、変更の内容より先に隠す（作業19 の受け入れテストで見つけた問題）
+    const label = td.querySelector(".row-label");
+    if (label) {
+      label.hidden = true;
+      if (td.scrollWidth <= td.clientWidth) continue;
+    }
+    const notes = [...td.querySelectorAll(".badge, .note-text:not(.row-label)")];
     const more = el("span", { className: "more" });
     td.append(more);
     let hidden = 0;
@@ -470,8 +476,8 @@ function gutterRow(model, index, focus) {
     if (tidiedCount) add(NOTE, "note-text", `列名を整えた（${tidiedCount} 列）`);
   }
   notes.sort((a, b) => a.order - b.order); // 同じ順位の中は、加えた順のまま（安定な並べ替え）
-  // 「ヘッダー行」はどの行かを示す見出しなので、いつも先頭に置く
-  if (isHeader) notes.unshift({ className: "note-text", text: "ヘッダー行" });
+  // 「ヘッダー行」はどの行かを示す見出しなので、いつも先頭に置く。帯に収まらないときは最初に隠す
+  if (isHeader) notes.unshift({ className: "note-text row-label", text: "ヘッダー行" });
 
   const td = el("td", { title: notes.map((n) => n.text).join("／") });
   if (notes.length) td.append(el("span", { className: "arrow" }, "→"));
