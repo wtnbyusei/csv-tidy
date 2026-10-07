@@ -58,6 +58,10 @@ button, select, input { font: inherit; }
 .select { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; background: #fff; }
 .check { display: flex; gap: 6px; align-items: flex-start; margin: 4px 0; cursor: pointer; }
 .check input { margin: 3px 0 0; flex: none; }
+.check label { cursor: pointer; }
+.check .help { margin-top: 2px; flex: none; }
+.field-head { display: flex; align-items: center; }
+.field .field-head label { display: inline; }
 .hint { color: var(--muted); font-size: 11px; }
 .hint.note { display: block; color: #9a6700; }
 .center { text-align: center; }
@@ -69,7 +73,8 @@ fieldset.radio legend { width: 100%; padding: 0; }
 .columns { border: 1px solid var(--line); border-radius: 6px; max-height: 320px; overflow-y: auto; }
 .col-head, .col-row { display: grid; grid-template-columns: 14px 28px minmax(0, 1fr) 56px; gap: 6px; align-items: center; padding: 3px 6px; }
 .col-head { font-size: 10px; color: var(--muted); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); }
-.col-head .c { text-align: center; }
+.col-head .c { text-align: center; line-height: 1.2; }
+.col-head .help { margin-left: 1px; }
 .col-row { border-bottom: 1px solid var(--line); }
 .col-row:last-child { border-bottom: 0; }
 .col-row.dragging { opacity: .4; }
@@ -86,6 +91,12 @@ fieldset.radio legend { width: 100%; padding: 0; }
 .chip { white-space: nowrap; font-size: 10px; border-radius: 8px; padding: 0 5px; text-align: center; border: 1px solid var(--line); color: #8c959f; background: #fff; cursor: pointer; }
 .chip.on { background: var(--info); border-color: var(--dup-line); color: var(--dup-line); }
 .col-actions { display: flex; gap: 6px; margin-top: 6px; }
+
+/* 用語の説明（「？」） */
+.help { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-left: 3px; padding: 0; border: 1px solid #8c959f; border-radius: 50%; background: #fff; color: var(--muted); font-size: 9px; font-weight: bold; line-height: 1; vertical-align: 1px; cursor: pointer; }
+.help:hover, .help[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.help-pop { position: fixed; z-index: 10; width: 280px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); color: var(--text); font-size: 12px; font-weight: normal; white-space: normal; text-align: left; }
+.help-pop p { margin: 4px 0 0; }
 
 /* 右: 結果 */
 .main { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
@@ -141,7 +152,22 @@ tr.focus td { box-shadow: inset 0 2px var(--accent), inset 0 -2px var(--accent);
 tr.focus td:first-child { box-shadow: inset 2px 0 var(--accent), inset 0 2px var(--accent), inset 0 -2px var(--accent); }
 tr.focus td:last-child { box-shadow: inset -2px 0 var(--accent), inset 0 2px var(--accent), inset 0 -2px var(--accent); }
 .gutter tr.focus td { box-shadow: inset 2px 0 var(--accent), inset -2px 0 var(--accent), inset 0 2px var(--accent), inset 0 -2px var(--accent); }
+/* 重複の組（画面設計書 4.3）: 重複の行は 1 色、組は帯の文字で示し、押すと同じ組を強調する */
+tr.dup td { background: #eef5ff; }
 tr.dup td.ln { box-shadow: inset 3px 0 var(--dup-line); }
+tr.dup-origin td.ln { box-shadow: inset 3px 0 #9ec5f4; }
+tr[data-group] { cursor: pointer; }
+tr[data-group]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+tr.grp td { background: #cfe3ff; }
+tr.grp td.ln { box-shadow: inset 5px 0 var(--dup-line); color: #0b3d91; font-weight: bold; }
+/* 削除した重複を強調するときは、背景は削除の赤のまま、左端の線だけ青にする */
+tr.removed.grp td { background: var(--removed); }
+tr.removed.grp td.ln { box-shadow: inset 5px 0 var(--dup-line); }
+.gutter tr.grp td { background: #cfe3ff; }
+.badge.origin { background: #fff; color: var(--dup-line); border: 1px solid var(--dup-line); }
+.more { display: inline-block; font-size: 10px; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 0 5px; }
+.group-bar { margin-bottom: 6px; padding: 4px 8px; background: var(--info); border-radius: 6px; font-size: 12px; }
+.group-bar .link { margin: 0 2px; }
 td.trimmed { background: var(--trimmed); box-shadow: inset 0 -2px var(--trimmed-line); }
 td.escaped { background: var(--escaped); box-shadow: inset 0 -2px var(--escaped-line); }
 th.renamed .orig, th.tidied .orig { font-weight: normal; color: var(--muted); font-size: 10px; }

@@ -51,14 +51,15 @@ def test_main_flow_shows_summary_diff_and_issues(page: Page, fixture_path):
     # セルなし（FR-45）
     expect(before_row(page, "5").locator("td.missing")).to_have_text("セルなし")
 
-    # 前後の変更への移動（FR-44）
+    # 前後の変更への移動（FR-44）。重複の元の行（2 行目）も変更のある行に数える（画面設計書 4.3）
     position = page.get_by_test_id("change-position")
-    expect(position).to_have_text("変更 ― / 6")
+    expect(position).to_have_text("変更 ― / 7")
     page.get_by_role("button", name="次の変更 ▶").click()
-    expect(position).to_have_text("変更 1 / 6")
+    expect(position).to_have_text("変更 1 / 7")
+    expect(page.locator('[data-testid="diff-before"] tr.focus td.ln')).to_have_text("2")
+    page.get_by_role("button", name="次の変更 ▶").click()
+    expect(position).to_have_text("変更 2 / 7")
     expect(page.locator('[data-testid="diff-before"] tr.focus td.ln')).to_have_text("3")
-    page.get_by_role("button", name="次の変更 ▶").click()
-    expect(position).to_have_text("変更 2 / 6")
 
     # 全行はページに分ける（FR-44）
     page.get_by_label("全行").check()
@@ -191,7 +192,7 @@ def test_unencodable_characters_disable_download(page: Page, fixture_path):
     expect(errors).to_contain_text("2 行目・メモの列: 「—」（U+2014）は CP932 で表せません")
 
     # 差分で該当する文字を囲む
-    errors.get_by_role("button").first.click()
+    errors.get_by_role("button", name="2 行目・名前の列: 「😀」（U+1F600）は CP932 で表せません → 差分で見る").click()
     expect(page.get_by_test_id("diff-after").locator(".unenc-char").first).to_have_text("😀")
 
     # UTF-8 に戻すとダウンロードできる
