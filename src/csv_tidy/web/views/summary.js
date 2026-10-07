@@ -12,7 +12,9 @@ export function renderSummary(container, model, options) {
     el("b", {}, "文字コード"),
     ` ${INPUT_ENCODING_LABELS[input.encoding]}${how} → ${OUTPUT_ENCODING_LABELS[output.encoding]}　`,
     el("b", {}, "改行"),
-    ` ${NEWLINE_LABELS[input.newline]} → ${NEWLINE_LABELS[output.newline]}`,
+    ` ${NEWLINE_LABELS[input.newline]} → ${NEWLINE_LABELS[output.newline]}　`,
+    el("b", {}, "列"),
+    ` ${columnChange(model)}`,
   );
 
   const duplicates =
@@ -23,6 +25,7 @@ export function renderSummary(container, model, options) {
     "div",
     { className: "counts", dataset: { testid: "counts" } },
     count("trimmed", `空白を取り除いた ${stats.cells_trimmed} セル`, stats.cells_trimmed),
+    options.tidy_names ? count("escaped", `列名を整えた ${stats.header_names_tidied} 列`, stats.header_names_tidied) : null,
     count("removed", `空行の削除 ${stats.empty_removed} 行`, stats.empty_removed),
     duplicates,
     count("warn", `列数の警告 ${stats.column_warnings}`, stats.column_warnings),
@@ -35,6 +38,13 @@ export function renderSummary(container, model, options) {
       : null,
   );
   replace(container, conv, counts);
+}
+
+/** 列の数の変化（画面設計書 7.3）。例: 「6 列 → 5 列（1 列を出力しない）」。 */
+function columnChange(model) {
+  const width = model.result.width;
+  const kept = model.kept.length;
+  return kept === width ? `${width} 列` : `${width} 列 → ${kept} 列（${width - kept} 列を出力しない）`;
 }
 
 /** 件数の札。0 件のときは色を付けない。 */

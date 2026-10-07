@@ -29,9 +29,9 @@ export function renderDiff(container, model, view, handlers) {
   for (let i = start; i < end; i++) {
     const item = itemAt(model, view.mode, i);
     if (typeof item === "object") {
-      left.append(gapRow(model, item.gap));
+      left.append(gapRow(model.width, item.gap));
       gutter.append(el("tr", { className: "gap" }, el("td", {})));
-      right.append(gapRow(model, item.gap));
+      right.append(gapRow(model.kept.length, item.gap));
       continue;
     }
     const focus = item === view.focus ? " focus" : "";
@@ -40,10 +40,10 @@ export function renderDiff(container, model, view, handlers) {
     right.append(afterRow(model, item, focus));
   }
   if (total === 0) {
-    const none = el("tr", { className: "gap" }, el("td", { colSpan: model.width + 1 }, "変更はありません"));
-    left.append(none);
+    const none = (columns) => el("tr", { className: "gap" }, el("td", { colSpan: columns + 1 }, "変更はありません"));
+    left.append(none(model.width));
     gutter.append(el("tr", { className: "gap" }, el("td", {})));
-    right.append(none.cloneNode(true));
+    right.append(none(model.kept.length));
   }
 
   const leftSide = el("div", { className: "side" }, left);
@@ -92,6 +92,7 @@ function toolbar(model, view, handlers) {
       { className: "legend" },
       el("span", {}, el("span", { className: "swatch trimmed" }), "空白を取り除いたセル"),
       el("span", {}, el("span", { className: "swatch escaped" }), "数式を無害化したセル"),
+      el("span", {}, el("span", { className: "swatch tidied" }), "列名を整えた列"),
       el("span", {}, el("span", { className: "swatch removed" }), "削除した行"),
       el("span", {}, el("span", { className: "swatch missing" }), "セルなし"),
       el("span", {}, el("span", { className: "ws" }), "半角 ", el("span", { className: "ws full" }), "全角の取り除いた空白"),
@@ -110,23 +111,49 @@ function pageNav(page, pages, handlers) {
   );
 }
 
-/** 表の枠と見出しの行。見出しには列の名前（ヘッダーの値）を出す。 */
+/**
+ * 表の枠と見出しの行。見出しには列の名前（ヘッダーの値）を出す。
+ * 左の表は元の列の順番、右の表は出力する列の順番と名前にする（FR-68、画面設計書 7.3）。
+ */
 function sideTable(model, side) {
-  const names = side === "before" ? model.headerBefore : model.headerAfter;
   const head = el("tr", {}, el("th", { className: "ln" }, "行"));
-  for (let c = 0; c < model.width; c++) {
-    const name = c < names.length ? names[c] : `（${c + 1} 列目）`;
-    head.append(el("th", { title: name }, name));
+  if (side === "before") {
+    for (let c = 0; c < model.width; c++) {
+      const name = c < model.headerBefore.length ? model.headerBefore[c] : `（${c + 1} 列目）`;
+      head.append(el("th", { title: name }, name));
+    }
+  } else {
+    for (const c of model.kept) head.append(afterHeading(model, c));
   }
+  const columns = side === "before" ? model.width : model.kept.length;
   const table = el("table", {}, head);
-  // 列が多いときは、表を横に広げてスクロールさせる
   // 1280px の画面で 4 列が収まる幅（画面設計書 1 章）。多い列は横スクロールにする
-  table.style.minWidth = `${88 + model.width * 72}px`;
+  table.style.minWidth = `${88 + columns * 72}px`;
   return table;
 }
 
-function gapRow(model, count) {
-  return el("tr", { className: "gap" }, el("td", { colSpan: model.width + 1 }, `… 変更のない ${count} 行を省略 …`));
+/** 右の表の見出し。名前を変えた列には「氏名 ← 名前」のように元の名前を添える（FR-63）。 */
+function afterHeading(model, column) {
+  const name = model.headerAfter[column] ?? "";
+  const reason = model.renamed.get(column);
+  if (!reason) return el("th", { title: name, dataset: { source: String(column) } }, name);
+  // セルの中の改行は「↵」で示す（見出しの 1 行に収めるため）
+  const original = (model.originalNames[column] || "空").replace(/\r\n|\r|\n/g, "↵");
+  const how = reason === "tidied" ? "列名を整えた" : "名前を変えた";
+  return el(
+    "th",
+    {
+      className: reason === "tidied" ? "tidied" : "renamed",
+      title: `${name}（${how}。元の名前: ${original}）`,
+      dataset: { source: String(column) },
+    },
+    name,
+    el("small", { className: "orig" }, ` ← ${original}`),
+  );
+}
+
+function gapRow(columns, count) {
+  return el("tr", { className: "gap" }, el("td", { colSpan: columns + 1 }, `… 変更のない ${count} 行を省略 …`));
 }
 
 function rowClass(model, index, focus) {
@@ -166,7 +193,7 @@ function afterRow(model, index, focus) {
       "tr",
       { className: `placeholder${focus}`, dataset },
       el("td", { className: "ln" }),
-      el("td", { colSpan: model.width }, "（出力しない）"),
+      el("td", { colSpan: model.kept.length }, "（出力しない）"),
     );
   }
   const trimmed = model.trimmed.get(index);
@@ -180,23 +207,36 @@ function afterRow(model, index, focus) {
     const code = /U\+([0-9A-F]{4,6})/.exec(issue.detail);
     if (code) unencodable.get(issue.column).add(String.fromCodePoint(parseInt(code[1], 16)));
   }
+  const isHeader = index === model.result.header_record;
+
+  // 出力する列の順に並べたとき、最後にセルがある位置。それより後ろのセルなしは出力しない（設計書 V3）
+  let last = -1;
+  model.kept.forEach((c, position) => {
+    if (c < values.length) last = position;
+  });
 
   const row = el("tr", { className: rowClass(model, index, focus), dataset });
   row.append(el("td", { className: "ln" }, String(model.outLine[index])));
-  for (let c = 0; c < model.width; c++) {
+  model.kept.forEach((c, position) => {
     if (c >= values.length) {
-      row.append(missingCell(model.records[index]));
-      continue;
+      // 行の途中に来たセルなしは、空のセルとして出力する（FR-62、画面設計書 7.3）
+      row.append(
+        position < last
+          ? el("td", { className: "filled", title: "元はセルなし。空のセルとして出力" })
+          : missingCell(model.records[index]),
+      );
+      return;
     }
     const classes = [];
     if (trimmed && trimmed.has(c)) classes.push("trimmed");
     if (escaped && escaped.has(c)) classes.push("escaped");
     if (formula.has(c)) classes.push("formula");
     if (unencodable.has(c)) classes.push("unencodable");
+    if (isHeader && model.renamed.get(c) === "tidied") classes.push("tidied");
     const td = el("td", { className: classes.join(" "), title: values[c] });
     appendValue(td, values[c], unencodable.get(c));
     row.append(td);
-  }
+  });
   return row;
 }
 
@@ -268,7 +308,8 @@ function gutterRow(model, index, focus) {
   const notes = [];
   const add = (className, text) => notes.push({ className, text });
 
-  if (index === model.result.header_record) add("note-text", "ヘッダー行");
+  const isHeader = index === model.result.header_record;
+  if (isHeader) add("note-text", "ヘッダー行");
   const removed = model.removed.get(index);
   if (removed) {
     if (removed.reason === "empty") add("badge", "削除: 空行");
@@ -276,11 +317,16 @@ function gutterRow(model, index, focus) {
     else add("badge", `削除: 重複（${model.records[removed.duplicate_of].line_start} 行目と同じ）`);
   }
 
+  const issues = model.issuesByRecord.get(index) || [];
+  const kept = new Set(model.kept);
   const seen = new Set();
-  for (const issue of model.issuesByRecord.get(index) || []) {
+  for (const issue of issues) {
     if (seen.has(issue.code)) continue;
     seen.add(issue.code);
     const record = model.records[index];
+    // その種類の課題がすべて出力しない列のセルなら、出力には関係しないことを添える（FR-67）
+    const ofCode = issues.filter((i) => i.code === issue.code);
+    const notOutput = ofCode.every((i) => i.column !== null && !kept.has(i.column)) ? "（出力しない列）" : "";
     switch (issue.code) {
       case "column_count":
         add("badge warn", `列数 ${record.cells.length} / ${model.headerWidth}`);
@@ -289,19 +335,22 @@ function gutterRow(model, index, focus) {
         add("badge dup", `重複: ${model.records[issue.related_record].line_start} 行目と同じ`);
         break;
       case "invisible_char":
-        add("badge warn", "見えない文字");
+        add("badge warn", `見えない文字${notOutput}`);
         break;
       case "control_char":
-        add("badge warn", "制御文字");
+        add("badge warn", `制御文字${notOutput}`);
         break;
       case "formula_like":
-        add("badge warn", "数式になる値");
+        add("badge warn", `数式になる値${notOutput}`);
+        break;
+      case "header_name":
+        add("badge warn", "列名の警告");
         break;
       case "unencodable":
         add("badge", "CP932 で表せない");
         break;
       case "multiline_cell":
-        add("badge info", "複数行のセル");
+        add("badge info", `複数行のセル${notOutput}`);
         break;
       case "leading_blank":
         add("badge info", "先頭の空行を飛ばした");
@@ -316,6 +365,13 @@ function gutterRow(model, index, focus) {
   if (escaped) add("note-text", `数式を無害化（${escaped.size} セル）`);
   const trimmed = model.trimmed.get(index);
   if (trimmed) add("note-text", `空白を取り除いた（${trimmed.size} セル）`);
+  if (isHeader) {
+    const reasons = [...model.renamed.values()];
+    const renamedCount = reasons.filter((r) => r === "renamed").length;
+    const tidiedCount = reasons.length - renamedCount;
+    if (renamedCount) add("note-text", `列名を変えた（${renamedCount} 列）`);
+    if (tidiedCount) add("note-text", `列名を整えた（${tidiedCount} 列）`);
+  }
 
   const td = el("td", { title: notes.map((n) => n.text).join("／") });
   if (notes.length) td.append(el("span", { className: "arrow" }, "→"));

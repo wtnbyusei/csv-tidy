@@ -65,6 +65,28 @@ fieldset.radio { border: 0; padding: 0; margin: 4px 0; display: flex; flex-wrap:
 fieldset.radio legend { width: 100%; padding: 0; }
 .export-reason { margin-top: 4px; color: var(--removed-line); font-size: 11px; }
 
+/* 列の一覧（v0.2、画面設計書 7.1 の B改） */
+.columns { border: 1px solid var(--line); border-radius: 6px; max-height: 320px; overflow-y: auto; }
+.col-head, .col-row { display: grid; grid-template-columns: 14px 28px minmax(0, 1fr) 56px; gap: 6px; align-items: center; padding: 3px 6px; }
+.col-head { font-size: 10px; color: var(--muted); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); }
+.col-head .c { text-align: center; }
+.col-row { border-bottom: 1px solid var(--line); }
+.col-row:last-child { border-bottom: 0; }
+.col-row.dragging { opacity: .4; }
+.col-row.drop { box-shadow: inset 0 2px var(--accent); }
+.col-row .handle { color: #8c959f; cursor: grab; user-select: none; font-size: 11px; letter-spacing: -2px; }
+.col-row .handle:focus-visible { outline: 2px solid var(--accent); border-radius: 2px; }
+.col-row .box { margin: 0 auto; }
+.name-cell { display: flex; flex-direction: column; min-width: 0; }
+.name-cell .name { width: 100%; min-width: 0; border: 1px solid transparent; border-radius: 4px; padding: 1px 4px; background: transparent; text-overflow: ellipsis; }
+.name-cell .name:hover, .name-cell .name:focus { border-color: var(--line); background: #fff; }
+.name-cell .name.empty::placeholder { color: #9a6700; font-style: italic; }
+.name-cell .orig { color: var(--muted); font-size: 10px; padding-left: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-row.off .name { color: #8c959f; text-decoration: line-through; }
+.chip { white-space: nowrap; font-size: 10px; border-radius: 8px; padding: 0 5px; text-align: center; border: 1px solid var(--line); color: #8c959f; background: #fff; cursor: pointer; }
+.chip.on { background: var(--info); border-color: var(--dup-line); color: var(--dup-line); }
+.col-actions { display: flex; gap: 6px; margin-top: 6px; }
+
 /* 右: 結果 */
 .main { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .result { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
@@ -90,6 +112,7 @@ fieldset.radio legend { width: 100%; padding: 0; }
 .swatch { display: inline-block; width: 10px; height: 10px; border: 1px solid var(--line); margin-right: 3px; vertical-align: -1px; }
 .swatch.trimmed { background: var(--trimmed); }
 .swatch.escaped { background: var(--escaped); }
+.swatch.tidied { background: var(--escaped); box-shadow: inset 0 -2px var(--escaped-line); }
 .swatch.removed { background: var(--removed); }
 .swatch.missing { background: var(--missing); }
 
@@ -121,6 +144,9 @@ tr.focus td:last-child { box-shadow: inset -2px 0 var(--accent), inset 0 2px var
 tr.dup td.ln { box-shadow: inset 3px 0 var(--dup-line); }
 td.trimmed { background: var(--trimmed); box-shadow: inset 0 -2px var(--trimmed-line); }
 td.escaped { background: var(--escaped); box-shadow: inset 0 -2px var(--escaped-line); }
+th.renamed .orig, th.tidied .orig { font-weight: normal; color: var(--muted); font-size: 10px; }
+th.tidied, td.tidied { background: var(--escaped); box-shadow: inset 0 -2px var(--escaped-line); }
+td.filled { background: #fafbfc; }
 td.missing { background: var(--missing); color: #8c959f; font-size: 11px; }
 td.formula { outline: 2px solid var(--warn-line); outline-offset: -3px; }
 td.unencodable { outline: 2px solid var(--removed-line); outline-offset: -3px; }

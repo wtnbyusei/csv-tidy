@@ -6,12 +6,15 @@ import {
   MAX_BYTES,
   buildModel,
   changeIndexAtOrAfter,
+  columnEntries,
   downloadName,
   formatSize,
   newView,
   pageOf,
   state,
+  toColumnsOption,
 } from "./state.js";
+import { renderColumns } from "./views/columns.js";
 import { renderDiff } from "./views/diff.js";
 import { el, replace } from "./views/dom.js";
 import { renderIssues } from "./views/issues.js";
@@ -33,6 +36,12 @@ const ui = {
   removeEmpty: $("opt-remove-empty"),
   dedupe: $("opt-dedupe"),
   escapeFormulas: $("opt-escape-formulas"),
+  columns: $("columns"),
+  columnsEmpty: $("columns-empty"),
+  columnsNotice: $("columns-notice"),
+  tidyNames: $("opt-tidy-names"),
+  columnsKeepAll: $("columns-keep-all"),
+  columnsReset: $("columns-reset"),
   dedupeNote: $("dedupe-note"),
   outputEncoding: $("output-encoding"),
   newlines: document.querySelectorAll('input[name="newline"]'),
@@ -66,6 +75,9 @@ function chooseFile(file) {
   state.result = null;
   state.model = null;
   state.exportError = null;
+  // 別のファイルでは、列の一覧を読み込んだときの状態から始める（FR-64）
+  state.options.columns = null;
+  state.columnsNotice = null;
   // 大きすぎるファイルは送らずに止める（FR-02、設計書 D5）
   if (file.size > MAX_BYTES) {
     state.file = null;
@@ -126,6 +138,43 @@ for (const radio of ui.newlines) {
   radio.addEventListener("change", () => onOptionChange((o) => (o.newline = radio.value)));
 }
 
+// ---- 列の一覧（v0.2、画面設計書 7.1） ----
+
+ui.tidyNames.addEventListener("change", () => onOptionChange((o) => (o.tidy_names = ui.tidyNames.checked)));
+
+/** 列の一覧を書き換える。columns が null（読み込んだときの状態）なら、今の一覧から作ってから変える。 */
+function onColumnsChange(update, focusSource = null) {
+  if (!state.model) return;
+  const entries = columnEntries(state.model, state.options.columns);
+  update(entries);
+  state.columnsNotice = null;
+  onOptionChange((o) => (o.columns = toColumnsOption(entries)));
+  // 一覧を作り直したので、移動した列のつまみにフォーカスを戻す（キーボードで続けて動かせるように）
+  if (focusSource !== null) {
+    const handle = ui.columns.querySelector(`[data-source="${focusSource}"] .handle`);
+    if (handle) handle.focus();
+  }
+}
+
+const columnHandlers = {
+  onKeep: (i, keep) => onColumnsChange((entries) => (entries[i].keep = keep)),
+  onCompare: (i, compare) => onColumnsChange((entries) => (entries[i].compare = compare)),
+  onRename: (i, name) =>
+    onColumnsChange((entries) => (entries[i].name = name === entries[i].original ? null : name)),
+  onMove: (from, to) => {
+    const source = columnEntries(state.model, state.options.columns)[from].source;
+    onColumnsChange((entries) => entries.splice(to, 0, ...entries.splice(from, 1)), source);
+  },
+};
+
+ui.columnsKeepAll.addEventListener("click", () =>
+  onColumnsChange((entries) => entries.forEach((entry) => (entry.keep = true))),
+);
+ui.columnsReset.addEventListener("click", () => {
+  state.columnsNotice = null;
+  onOptionChange((o) => (o.columns = null));
+});
+
 // ---- 整形する ----
 
 async function process() {
@@ -155,12 +204,25 @@ async function process() {
     state.view = view;
   } catch (error) {
     if (error.name === "AbortError" || controller !== current) return;
+    // 列の設定がファイルと合わない（文字コードを指定し直して列が変わったなど）ときは、
+    // 列の一覧を読み込んだときの状態に戻して処理し直す（設計書 V2）
+    if (isColumnsMismatch(error) && options.columns !== null) {
+      controller = null;
+      state.options.columns = null;
+      state.columnsNotice = "ファイルの列が変わったため、列の一覧を最初の状態に戻しました。";
+      process();
+      return;
+    }
     state.status = "failed";
     state.error = error instanceof ApiError ? error : new ApiError("unexpected", String(error));
   } finally {
     if (controller === current) controller = null;
   }
   render();
+}
+
+function isColumnsMismatch(error) {
+  return error instanceof ApiError && error.code === "invalid_options" && (error.extra.fields || []).includes("columns");
 }
 
 // ---- ダウンロード（設計書 8.3） ----
@@ -216,8 +278,9 @@ function renderSidebar() {
 
   for (const section of document.querySelectorAll(".needs-file")) {
     section.classList.toggle("disabled", !hasFile);
-    for (const control of section.querySelectorAll("input, select")) control.disabled = !hasFile;
+    for (const control of section.querySelectorAll("input, select, button:not(#download)")) control.disabled = !hasFile;
   }
+  renderColumnList();
 
   // 自動判定の結果を選択肢に出す（画面設計書 3 章）
   const auto = ui.inputEncoding.options[0];
@@ -243,6 +306,23 @@ function renderSidebar() {
     reason = state.exportError;
   }
   ui.exportReason.textContent = reason;
+}
+
+/** 列の一覧。中身が変わらないときは作り直さない（入力中の列名やフォーカスを消さないため）。 */
+let columnsSignature = null;
+function renderColumnList() {
+  const model = state.model;
+  const entries = model ? columnEntries(model, state.options.columns) : [];
+  ui.columns.hidden = entries.length === 0;
+  ui.columnsEmpty.hidden = entries.length > 0;
+  ui.columnsKeepAll.disabled = entries.length === 0;
+  ui.columnsReset.disabled = entries.length === 0 || state.options.columns === null;
+  ui.columnsNotice.hidden = !state.columnsNotice;
+  ui.columnsNotice.textContent = state.columnsNotice ?? "";
+  const signature = JSON.stringify(entries);
+  if (signature === columnsSignature) return;
+  columnsSignature = signature;
+  renderColumns(ui.columns, entries, columnHandlers);
 }
 
 function renderMain() {

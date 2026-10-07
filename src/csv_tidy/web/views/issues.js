@@ -16,6 +16,7 @@ const KINDS = {
   invisible_char: "見えない文字",
   control_char: "制御文字",
   formula_like: "数式として扱われるおそれのある値",
+  header_name: "あるべき姿でない列名",
   duplicate: "重複している行",
   multiline_cell: "複数行にまたがるセル",
   leading_blank: "先頭の空行",
@@ -94,9 +95,21 @@ function renderKind(model, view, options, handlers, code, list) {
 function describe(model, issue, handlers) {
   if (issue.record === null) return issue.detail;
   const record = model.records[issue.record];
-  let place = `${lineLabel(record)} 行目`;
-  if (issue.column !== null) place += `・${columnName(model, issue.column)}の列`;
-  const text = issue.code === "multiline_cell" ? place : `${place}: ${issue.detail}`;
+  let text;
+  if (issue.code === "header_name") {
+    // 列名の警告は行ではなく列を示す（画面設計書 7.4）
+    text = `${issue.column + 1} 列目: ${issue.detail}`;
+  } else {
+    let place = `${lineLabel(record)} 行目`;
+    if (issue.column !== null) {
+      place += `・${columnName(model, issue.column)}の列`;
+      // 出力しない列のセルについての課題は、出力には関係しないことを添える（FR-67）
+      if (!model.kept.includes(issue.column)) place += "（出力しない列）";
+    }
+    text = issue.code === "multiline_cell" ? place : `${place}: ${issue.detail}`;
+    // 重複は、比べた列を書く（判定に使う列を変えたことに気づけるように。画面設計書 7.4）
+    if (issue.code === "duplicate") text += `（比べた列: ${comparedColumns(model)}）`;
+  }
   return el(
     "button",
     {
@@ -107,4 +120,11 @@ function describe(model, issue, handlers) {
     },
     `${text} → 差分で見る`,
   );
+}
+
+function comparedColumns(model) {
+  return model.plan
+    .filter((column) => column.compare)
+    .map((column) => columnName(model, column.source))
+    .join("・");
 }
