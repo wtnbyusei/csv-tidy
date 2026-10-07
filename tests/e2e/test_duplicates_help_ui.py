@@ -204,3 +204,19 @@ def test_help_text_is_inserted_as_text(page: Page):
     expect(pop).to_contain_text("<img src=x onerror=window.__xss=1>")
     expect(pop.locator("img")).to_have_count(0)
     assert page.evaluate("window.__xss") is None
+
+
+def test_header_row_label_gives_way_to_real_notes(page: Page):
+    """ヘッダー行の帯で、見出しの「ヘッダー行」が場所をとって、変更の内容が「他 N」に隠れない。
+
+    作業19 の受け入れテストで見つけた問題（acceptance.md 6.4 節）。
+    """
+    data = '名前,,名前,"住所\n（番地）"\n山田,1,x,東京\n'.encode()
+    open_file(page, name="header.csv", data=data)
+    wait_result(page)
+    cell = page.get_by_test_id("diff-gutter").locator('tr[data-record="0"] td')
+    # 収まらないので、まず「ヘッダー行」を隠し、それでも収まらない説明を「他 N」に数える
+    expect(cell.locator(".row-label")).to_be_hidden()
+    expect(cell.locator(".badge.info")).to_have_text("複数行のセル")
+    expect(cell.locator(".badge.info")).to_be_visible()
+    expect(cell.locator(".more")).to_have_text("他 1")

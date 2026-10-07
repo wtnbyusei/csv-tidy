@@ -33,7 +33,7 @@ export function renderSummary(container, model, options) {
     count("warn", `列数の警告 ${stats.column_warnings}`, stats.column_warnings, "column_count"),
     count("warn", `見えない文字 ${stats.invisible_chars}`, stats.invisible_chars, "invisible_char"),
     count("warn", `制御文字 ${stats.control_chars}`, stats.control_chars, "control_char"),
-    count("warn", `数式化の警告 ${stats.formula_warnings}`, stats.formula_warnings, "formula_like"),
+    count("warn", `数式になる値 ${stats.formula_warnings}`, stats.formula_warnings, "formula_like"),
     options.escape_formulas
       ? count("escaped", `数式を無害化 ${stats.formulas_escaped} セル`, stats.formulas_escaped, "formula_escape")
       : null,

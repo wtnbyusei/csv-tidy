@@ -9,16 +9,19 @@ const LEVELS = [
   { level: "info", title: "情報" },
 ];
 
-/** 課題の種類の見出し。並び順もこの順にする。 */
+/**
+ * 課題の種類の見出し。並び順もこの順にする。概要の札・変更の帯・用語の説明と同じ言葉を使い、
+ * 言葉だけでは分かりにくいものに短い説明を添える（作業19 の用語の見直し）。
+ */
 const KINDS = {
   unencodable: "CP932 で表せない文字",
-  column_count: "列数がヘッダーと違う行",
+  column_count: "列数の警告（ヘッダーと列数が違う行）",
   invisible_char: "見えない文字",
   control_char: "制御文字",
-  formula_like: "数式として扱われるおそれのある値",
-  header_name: "あるべき姿でない列名",
+  formula_like: "数式になる値（表計算ソフトで数式として扱われるおそれ）",
+  header_name: "列名の警告（空・重複・改行）",
   duplicate: "重複している行",
-  multiline_cell: "複数行にまたがるセル",
+  multiline_cell: "複数行のセル",
   leading_blank: "先頭の空行",
   no_data_rows: "データ行がない",
 };
@@ -135,9 +138,9 @@ function describe(model, issue, handlers) {
   );
 }
 
+/** 比べた列の名前。すべての列を比べたとき（初期状態）は「すべて」と短く書く。 */
 function comparedColumns(model) {
-  return model.plan
-    .filter((column) => column.compare)
-    .map((column) => columnName(model, column.source))
-    .join("・");
+  const compared = model.plan.filter((column) => column.compare);
+  if (compared.length === model.plan.length) return "すべての列";
+  return compared.map((column) => columnName(model, column.source)).join("・");
 }
