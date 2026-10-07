@@ -74,6 +74,19 @@ class CsvSyntaxError(TidyError):
         self.detail = detail
 
 
+class InvalidColumnsError(TidyError):
+    """列の設定（columns）がファイルの列と合わない（設計書 15.1 の V2）。"""
+
+    code = "invalid_options"
+
+    def __init__(self, *, width: int) -> None:
+        super().__init__(
+            f"列の設定がファイルの列（{width} 列）と合いません。"
+            "画面を読み込み直すか、列の一覧で「最初に戻す」を押してください。"
+        )
+        self.width = width
+
+
 class UnencodableError(TidyError):
     """出力の文字コードで表せない文字があり、出力できない（FR-16）。"""
 

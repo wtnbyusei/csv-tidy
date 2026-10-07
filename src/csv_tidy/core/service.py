@@ -5,7 +5,9 @@ from .errors import UnencodableError
 from .models import (
     CellTrimmed,
     FormulaEscaped,
+    HeaderRenamed,
     IssueCode,
+    RenameReason,
     RemoveReason,
     RowRemoved,
     Stats,
@@ -15,7 +17,7 @@ from .models import (
 from .parsing import parse
 from .pipeline import run_steps
 from .steps import TidyContext
-from .writing import write_csv
+from .writing import project, write_csv
 
 
 class TidyService:
@@ -42,7 +44,8 @@ class TidyService:
         if not result.exportable():
             raise UnencodableError(count=result.stats.unencodable_chars)
         # 出力は作業用の値から作る。画面は変更の記録から組み立てる（両者の一致はテスト P5）
-        rows = [ctx.values[position] for position in ctx.output_rows()]
+        sources = ctx.kept_sources()
+        rows = [project(ctx.values[position], sources) for position in ctx.output_rows()]
         return write_csv(rows, options.output_encoding, options.newline)
 
     @staticmethod
@@ -58,6 +61,8 @@ class TidyService:
             changes=ctx.changes,
             issues=ctx.issues,
             stats=compute_stats(ctx),
+            width=ctx.width,
+            columns=ctx.plan,
         )
         return result, ctx
 
@@ -78,4 +83,7 @@ def compute_stats(ctx: TidyContext) -> Stats:
         formula_warnings=codes.count(IssueCode.FORMULA_LIKE),
         unencodable_chars=codes.count(IssueCode.UNENCODABLE),
         formulas_escaped=sum(isinstance(c, FormulaEscaped) for c in ctx.changes),
+        header_names_tidied=sum(
+            isinstance(c, HeaderRenamed) and c.reason is RenameReason.TIDIED for c in ctx.changes
+        ),
     )

@@ -6,12 +6,14 @@ pydantic の型に詰め直さず、そのまま辞書にして返す（速さ�
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from csv_tidy.core.models import (
     CellTrimmed,
     Change,
+    ColumnSpec,
     FormulaEscaped,
+    HeaderRenamed,
     InputEncoding,
     Issue,
     Newline,
@@ -20,6 +22,21 @@ from csv_tidy.core.models import (
     TidyOptions,
     TidyResult,
 )
+
+
+class ColumnIn(BaseModel):
+    """列の一覧の 1 列分（設計書 15.1）。`compare` を書かなければ `keep` と同じにする。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: int = Field(ge=0)
+    name: str | None = None
+    keep: bool = True
+    compare: bool | None = None
+
+    def to_core(self) -> ColumnSpec:
+        compare = self.keep if self.compare is None else self.compare
+        return ColumnSpec(source=self.source, name=self.name, keep=self.keep, compare=compare)
 
 
 class OptionsIn(BaseModel):
@@ -34,6 +51,8 @@ class OptionsIn(BaseModel):
     escape_formulas: bool = True
     output_encoding: OutputEncoding = OutputEncoding.UTF8
     newline: Newline = Newline.LF
+    columns: list[ColumnIn] | None = None
+    tidy_names: bool = True
 
     def to_core(self) -> TidyOptions:
         return TidyOptions(
@@ -44,6 +63,8 @@ class OptionsIn(BaseModel):
             escape_formulas=self.escape_formulas,
             output_encoding=self.output_encoding,
             newline=self.newline,
+            columns=None if self.columns is None else tuple(column.to_core() for column in self.columns),
+            tidy_names=self.tidy_names,
         )
 
 
@@ -62,6 +83,8 @@ def result_to_json(result: TidyResult, size: int) -> dict[str, Any]:
             "exportable": result.exportable(),
         },
         "header_record": result.header_record,
+        "width": result.width,
+        "columns": [{"source": c.source, "keep": c.keep, "compare": c.compare} for c in result.columns],
         "records": [
             {"index": r.index, "line_start": r.line_start, "line_end": r.line_end, "cells": list(r.cells)}
             for r in result.records
@@ -77,6 +100,14 @@ def _change_to_json(change: Change) -> dict[str, Any]:
         return {"type": "cell_trimmed", "record": change.record, "column": change.column, "after": change.after}
     if isinstance(change, FormulaEscaped):
         return {"type": "formula_escaped", "record": change.record, "column": change.column, "after": change.after}
+    if isinstance(change, HeaderRenamed):
+        return {
+            "type": "header_renamed",
+            "record": change.record,
+            "column": change.column,
+            "after": change.after,
+            "reason": change.reason.value,
+        }
     if isinstance(change, RowRemoved):
         return {
             "type": "row_removed",

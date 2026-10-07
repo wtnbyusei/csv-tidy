@@ -9,7 +9,14 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from csv_tidy.core.errors import CsvSyntaxError, DecodeError, NotCsvError, TidyError, UnencodableError
+from csv_tidy.core.errors import (
+    CsvSyntaxError,
+    DecodeError,
+    InvalidColumnsError,
+    NotCsvError,
+    TidyError,
+    UnencodableError,
+)
 
 
 class ApiError(Exception):
@@ -34,6 +41,8 @@ def _tidy_error_extra(error: TidyError) -> dict[str, Any]:
         return {"looks_like_xlsx": error.looks_like_xlsx}
     if isinstance(error, DecodeError):
         return {"encoding": error.encoding}
+    if isinstance(error, InvalidColumnsError):
+        return {"fields": ["columns"], "width": error.width}
     if isinstance(error, UnencodableError):
         return {"count": error.count}
     return {}

@@ -705,7 +705,7 @@ stateDiagram-v2
 | 422 | `decode_failed` | どの文字コードでもデコードできない、または指定した文字コードで読めない | `encoding`（指定した文字コード。自動判定なら null） |
 | 422 | `csv_syntax` | CSV の書き方の誤り | `line` |
 | 422 | `unencodable` | `/api/export` で CP932 に出力できない | `count` |
-| 422 | `invalid_options` | 設定の値が不正（JSON でない、知らない項目、値が選択肢にない） | `fields`（誤りのある項目名） |
+| 422 | `invalid_options` | 設定の値が不正（JSON でない、知らない項目、値が選択肢にない）。v0.2 では、`columns` がファイルの列の並べ替えになっていないときも（15.1） | `fields`（誤りのある項目名）。`columns` がファイルと合わないときは `fields: ["columns"]` と `width`（ファイルの列数） |
 | 422 | `invalid_request` | ファイルが送られていないなど、送られてきた形が正しくない | `fields` |
 
 形は `{"error": {"code": "...", "message": "日本語のメッセージ", ...追加の項目}}` にそろえる。
@@ -800,22 +800,25 @@ stateDiagram-v2
 | `columns[].compare` | 重複の判定に使うか（FR-65） | `keep` と同じ |
 | `tidy_names` | 列名を整える（FR-66） | `true` |
 
-- `columns` を指定するときは、`source` に 0 から列数−1 までがちょうど 1 回ずつ現れること（列の並べ替えであること）を求める。満たさないときは 422 `invalid_options`（`fields: ["columns"]`）にする。画面は、別のファイルを選んだら `columns` を `null` に戻す（FR-64）。
-- 列数（`width`）は、ヘッダーと全データ行のうち最も多い列数（FR-60）。整形結果で返す（15.4）。
+- `columns` を指定するときは、`source` に 0 から列数−1 までがちょうど 1 回ずつ現れること（列の並べ替えであること）を求める。満たさないときは 422 `invalid_options`（`fields: ["columns"]`、`width` にファイルの列数）にする。画面は、別のファイルを選んだら `columns` を `null` に戻す（FR-64）。
+- 列数（`width`）は、ヘッダーと、空行でないデータ行のうち最も多い列数（FR-60。空行を数えない理由は 15.7 の V6）。整形結果で返す（15.4）。
 
 ### 15.2 処理の順番（Step）
 
 ```mermaid
 flowchart LR
-    cs[CharScanStep] --> tr[TrimStep] --> hd[HeaderStep] --> er[EmptyRowStep] --> cc[ColumnCountStep]
-    cc --> dd["DedupeStep<br/>（比べる列だけで判定）"] --> fm[FormulaStep] --> dr[DataRowsStep]
-    dr --> cp["ColumnPlanStep（新規）<br/>列の計画を決め、名前の変更と<br/>列名を整える"] --> fe["FormulaEscapeStep<br/>（出力する列だけ）"] --> en["EncodabilityStep<br/>（出力する列だけ）"]
+    cs[CharScanStep] --> tr[TrimStep] --> hd[HeaderStep] --> cp["ColumnPlanStep（新規）<br/>列数を数え、列の計画を決める"]
+    cp --> er[EmptyRowStep] --> cc[ColumnCountStep] --> dd["DedupeStep<br/>（比べる列だけで判定）"] --> fm[FormulaStep] --> dr[DataRowsStep]
+    dr --> hn["HeaderNameStep（新規）<br/>名前の変更と列名を整える"] --> fe["FormulaEscapeStep<br/>（出力する列だけ）"] --> en["EncodabilityStep<br/>（出力する列だけ）"]
 ```
+
+作業16 の設計では 1 つの `ColumnPlanStep` を `DataRowsStep` の後に置いていたが、作業17 の実装で 2 つに分けた（15.7 の V7）。
 
 | Step | v0.2 で変えること |
 | --- | --- |
 | `DedupeStep` | 比べるキーを「比べる列の値」にする。行ごとに、比べる列それぞれについて、セルがあればその値、なければ「セルなし」を表す値を並べたものをキーにする（セルなしと空のセルを区別する。FR-65）。比べる列が 1 つもなければ何もしない。初期状態（全列を比べる）では v0.1 と同じ判定になる |
-| `ColumnPlanStep`（新規） | `columns` から列の計画（出力する列の並び）を決めて `ctx.plan` に置く。出力する列の名前を決め、元の名前と違えば `HeaderRenamed`（理由 `renamed`）を記録する。`tidy_names` がオンなら FR-66 の順（改行→空→重複）で直し、直した列ごとに `HeaderRenamed`（理由 `tidied`）を記録する。オフなら、あるべき姿でない名前を課題 `header_name`（警告）にする |
+| `ColumnPlanStep`（新規） | 列数（15.1）を数えて `ctx.width` に置く。`columns` を確かめ（V2）、列の計画（出力する列の並びと、比べる列）を `ctx.plan` に置く。`columns` が `null` なら、全列を元の順番で出力し、すべて比べる計画にする。ヘッダーを決めた直後に行う |
+| `HeaderNameStep`（新規） | 出力する列の名前を決め、元の名前と違えば `HeaderRenamed`（理由 `renamed`）を記録する。`tidy_names` がオンなら FR-66 の順（改行→空→重複）で直し、直した列ごとに `HeaderRenamed`（理由 `tidied`）を記録する。オフなら、あるべき姿でない名前を課題 `header_name`（警告）にする。データ行への処理の後、無害化の前に行う（FR-69） |
 | `FormulaEscapeStep` | 出力する行のうち、出力する列のセルだけを対象にする（FR-67） |
 | `EncodabilityStep` | 同上 |
 
@@ -931,3 +934,6 @@ v0.2 で加える用語（同じく作業18）: `compare`（比べる・重複�
 | V3 | 列を並べ替えた結果、行の途中に来た「セルなし」は空のセルとして出力し、末尾の「セルなし」は出力しない（開発者の決定） | 列の位置をずらさないため（詰めると値が別の列に入る）。列の操作をしないときは v0.1 と同じ出力になる |
 | V4 | 数式化の警告（`FormulaStep`）は、v0.1 と同じくすべての列を対象にする。出力しない列の警告には、画面で「（出力しない列）」と添える | FR-67 で対象外にするのは、出力の内容を変える無害化と、出力を止める CP932 の検査だけのため |
 | V5 | 重複の組の情報は API に加えず、画面で既存の `related_record`・`duplicate_of` から組み立てる | 必要な情報はすでに返している。応答を大きくしない |
+| V6 | 列数（`width`）に空行を数えない。空行を削除しない設定で、列数より多いセルを持つ空行があると、列数を超えるセルは出力しない（どのセルも空なので、値は失われない）（作業17） | 空行は列数の検査（FR-30）でも対象にしていない。`,,,,,` のような空行を数えると、データのない「ヘッダーなしの列」が一覧に出て、列名を整える処理で「列6」などの名前がヘッダーに付いてしまう。設定（空行の削除）によって列数が変わらないので、画面の列の一覧も変わらない |
+| V7 | 作業16 の `ColumnPlanStep` を、列の計画を決める `ColumnPlanStep`（ヘッダーの直後）と、列名を決める `HeaderNameStep`（データ行への処理の後）に分けた（作業17） | 重複の判定（`DedupeStep`）が比べる列を使うので、計画はそれより前に決める必要がある。列名の処理は FR-69 の順番（重複の削除 → 列の操作 → 列名を整える → 無害化）のとおり後ろに置く |
+| V8 | コアの `ColumnSpec.compare` の初期値は `true`。API で `compare` を書かないときは `keep` と同じにする（15.1） | コアは「書かれたとおりに動く」形にそろえ、画面向けの初期値の決まりは API の層で扱う |
